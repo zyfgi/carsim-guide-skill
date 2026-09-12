@@ -1,23 +1,27 @@
-# carsim-guide-skill
+> This skill follows the [Agent Skills](https://agentskills.io) standard: a folder with a `SKILL.md` (YAML frontmatter + instructions), bundled scripts, and on-demand references.
 
-A self-contained knowledge pack + Python tooling for operating **CarSim 2024.0** headless — no GUI after setup, no database writes, no Simulink, no MCP server required. Everything here was validated by actually running it end to end (multi-scenario batch runs, unit checks, sign-convention checks, vehicle switching, error paths).
+# CarSim Guide
 
-Built for **AI agents**: install once, then your agent drives CarSim through it. The scripts also run standalone (CI-friendly).
+A skill that teaches an AI agent to operate **CarSim 2024.0** headless — running scenarios, switching vehicles, changing parameters, and reading SI-unit results entirely from the command line. After a one-time setup per vehicle, no GUI, no database writes, no Simulink, and no MCP server are needed. Every mechanism and pitfall in this skill was verified by actually running it (18-check suite: parameter changes, vehicle switching, custom output channels, error paths).
 
-## What it gives you
+## What it does
 
-- **The override.par pattern** — the verified way to run CarSim scenarios without touching the GUI: take a GUI-expanded `Run_all.par` as a base once per vehicle, then append keyword overrides (speed table, steering, friction, output channels) for every scenario. CarSim parses last-write-wins, so overrides just work.
-- **`scripts/carsim_batch.py`** — a parameterized Python workflow: generate `override.par` + `simfile.sim`, call `VS_SolverWrapper_CLI_64.exe` headless with proper success/failure detection, and read the 1 kHz `run.csv` back as a **SI-unit pandas DataFrame** (unit contract built in and field-verified: km/h, g, rpm, deg/s conversions).
-- **Hard-won pitfall knowledge** — two falsified approaches (thin-parsfile direct reads segfault; the VS C API stepping is unnecessary for most online-validation work), the steering-table append trap, the 32-bit DLL trap, license requirements, path-escaping traps, and more.
-- **Database exploration without any tooling** — the CarSim database is plain-text `.par` files; grep recipes cover vehicle search, assembly trees, and keyword/unit lookups.
-- **Dataset syntax templates** — Run Control / Procedure / speed controller / path follower / Segment-Builder roads, for reading or editing via GUI.
+| Task | How |
+|---|---|
+| Run a scenario headless | `scripts/carsim_batch.py` generates `override.par` + `simfile.sim`, calls the solver CLI, and verifies success |
+| Change speed / steering / friction / duration | keyword overrides appended after a GUI-expanded base (CarSim parses last-write-wins) |
+| Add payloads (mass, CG, inertia, tire radius) | `extra_lines=["M_SU 1254.0", "Y_CG_SU 150.0", …]` |
+| Switch to another vehicle | one-time GUI base expansion, then override everything else |
+| Read results | `run.csv` → pandas DataFrame in **SI units** (built-in, field-verified contract: km/h, g, rpm, deg/s) |
+| Explore the vehicle database | grep recipes in `references/` — no tooling required |
+| Understand dataset files | `.par` syntax templates in `references/` |
 
 ## Install
 
-**Option A — as an agent skill (any agent that supports the Agent Skills convention, i.e. a `SKILL.md` with YAML frontmatter).** Clone the repo into your agent's skills directory; the skill auto-triggers on CarSim-related tasks. Common locations:
+Clone the repo into your agent's skills directory:
 
 ```bash
-# cross-tool standard (personal / project-level)
+# cross-tool standard (personal / project)
 git clone https://github.com/zyfgi/carsim-guide-skill ~/.agents/skills/carsim-guide
 git clone https://github.com/zyfgi/carsim-guide-skill .agents/skills/carsim-guide
 
@@ -25,54 +29,52 @@ git clone https://github.com/zyfgi/carsim-guide-skill .agents/skills/carsim-guid
 git clone https://github.com/zyfgi/carsim-guide-skill ~/.claude/skills/carsim-guide
 ```
 
-If your agent uses a different directory, check its docs — anything that discovers `SKILL.md` files works.
-
-**Option B — as plain context (agents without skill support).** The whole pack is ordinary Markdown. Just point your agent at it, e.g. add one line to your `AGENTS.md` / rules file:
-
-```
-For any CarSim task, read SKILL.md in carsim-guide-skill first and follow it.
-```
-
-**Option C — standalone, no agent.** `scripts/carsim_batch.py` has no dependencies beyond Python 3 + pandas and works on its own (see Quick start).
-
-### Zero-effort: let your agent install it
-
-Paste this prompt into any AI coding agent — it will do the whole install end to end:
+Or hand the install to your agent — paste this prompt:
 
 ```text
 Install the carsim-guide agent skill for me:
-1. Clone https://github.com/zyfgi/carsim-guide-skill into a skills directory.
-   Preferred target: ~/.agents/skills/carsim-guide (cross-tool standard).
-   Alternatives: ~/.claude/skills/carsim-guide (Claude Code), or
-   .agents/skills/carsim-guide in the current project.
-2. If git is unavailable or blocked, download the ZIP from
+1. Clone https://github.com/zyfgi/carsim-guide-skill into a skills directory
+   (~/.agents/skills/carsim-guide, or ~/.claude/skills/carsim-guide for
+   Claude Code, or .agents/skills/carsim-guide in this project).
+2. If git is unavailable or blocked, fetch the ZIP from
    https://github.com/zyfgi/carsim-guide-skill/archive/refs/heads/master.zip
    and extract it to the same target.
-3. Verify SKILL.md exists inside the installed carsim-guide folder and show
-   me its name/description frontmatter to confirm the install.
+3. Verify SKILL.md exists in the installed carsim-guide folder and show me
+   its name/description to confirm the install.
 ```
 
-## After install
+Using an agent without skill support? Add one line to your `AGENTS.md` / rules file: `For any CarSim task, read SKILL.md in carsim-guide-skill first and follow it.`
 
-This skill is designed to be **executed by an agent**, not read as a human tutorial. Once installed, your agent loads `SKILL.md` automatically on any CarSim-related task and runs the verified workflow end to end — locating the installation, generating the one-time vehicle base, headless scenario runs, SI-unit CSV results. (`SKILL.md` §0 is the 5-step quick start it follows.)
+## Use it
 
-If you are an agent that was pointed at this repository directly: read [`SKILL.md`](SKILL.md) now — it is the entry point. `scripts/carsim_batch.py` is the run workflow (CLI + library API); the files under `references/` are read on demand, exactly as SKILL.md instructs.
+After installation, just mention the task in plain language:
+
+- "Use CarSim to run a 65 s straight cruise at 50 km/h with the four-motor EV."
+- "Switch to the C-Class hatchback and rerun the same scenario at μ = 0.5."
+- "Add a +120 kg central payload variant and verify the static axle loads."
+- "Read the yaw-rate column from the last run and convert it to rad/s."
+
+The skill auto-triggers on CarSim-related work; `SKILL.md` is the entry point your agent follows.
 
 ## Requirements
 
-- CarSim 2024.0 installed with a valid license (GUI open or `cslm.exe` running)
-- Python 3.x with pandas (any conda/venv; CarSim's bundled Python is not used)
+- CarSim 2024.0 (Windows x64) with a valid license — GUI open or `cslm.exe` running
+- Python 3.x with pandas (the scripts also run standalone, e.g. in CI)
 
 ## Repository layout
 
 ```
-SKILL.md                          # main guide: mechanics, override pattern, channels & units, pitfalls
-scripts/carsim_batch.py           # generate / run / read workflow (CLI + library API)
-scripts/dump_dll_exports.py       # zero-dependency DLL export-symbol enumerator
-references/python-interface.md    # script walkthrough + unit conversion contract
-references/database-exploration.md# grep-based database exploration (no MCP)
-references/dataset-syntax.md      # .par dataset syntax templates
+SKILL.md                           # entry point: mechanics, override pattern, channels & units, pitfalls
+scripts/carsim_batch.py            # generate / run / read workflow (CLI + library API)
+scripts/dump_dll_exports.py        # zero-dependency DLL export-symbol enumerator
+references/python-interface.md     # script walkthrough + unit conversion contract
+references/database-exploration.md # grep-based database exploration (no MCP)
+references/dataset-syntax.md       # .par dataset syntax templates
 ```
+
+## Disclaimer
+
+Field-tested against CarSim 2024.0 on Windows x64 with an 18-check automated suite; behavior may vary with other versions or setups. Test in your own environment before relying on it for critical work.
 
 ## License
 
