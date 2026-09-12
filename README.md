@@ -2,7 +2,7 @@
 
 A self-contained knowledge pack + Python tooling for operating **CarSim 2024.0** headless — no GUI after setup, no database writes, no Simulink, no MCP server required. Everything here was validated by actually running it end to end (multi-scenario batch runs, unit checks, sign-convention checks, vehicle switching, error paths).
 
-Works with **any AI coding agent** — or no agent at all.
+Built for **AI agents**: install once, then your agent drives CarSim through it. The scripts also run standalone (CI-friendly).
 
 ## What it gives you
 
@@ -52,23 +52,11 @@ Install the carsim-guide agent skill for me:
    me its name/description frontmatter to confirm the install.
 ```
 
-## Quick start (fresh machine → first run)
+## After install
 
-1. Locate the CarSim install (`<PROG>` = `…\CarSim2024.0_Prog`, `<DATADIR>` = `…\CarSim2024.0_Data`).
-2. License: keep the CarSim GUI open, or start `<PROG>\Programs\cslm.exe`.
-3. Get a base (once per vehicle — the only GUI step): open a Run Control → **Run Math Model** → take `Results\Run_<uuid>\Run_all.par`.
-4. Run a 65 s straight cruise:
+This skill is designed to be **executed by an agent**, not read as a human tutorial. Once installed, your agent loads `SKILL.md` automatically on any CarSim-related task and runs the verified workflow end to end — locating the installation, generating the one-time vehicle base, headless scenario runs, SI-unit CSV results. (`SKILL.md` §0 is the 5-step quick start it follows.)
 
-```bash
-python scripts/carsim_batch.py \
-    --prog    "C:/CarSim/CarSim2024.0_Prog" \
-    --datadir "C:/CarSim/CarSim2024.0_Data" \
-    --base    "C:/work/base/Run_all.par" \
-    --out     "C:/work/demo" \
-    --tstop 65 --speed-profile "0:50,65:50" --run --read
-```
-
-5. Acceptance: stdout ends with `Termination at simulation time = 65 s` and `<out>/run.csv` exists (1 kHz, SI-ready).
+If you are an agent that was pointed at this repository directly: read [`SKILL.md`](SKILL.md) now — it is the entry point. `scripts/carsim_batch.py` is the run workflow (CLI + library API); the files under `references/` are read on demand, exactly as SKILL.md instructs.
 
 ## Requirements
 
