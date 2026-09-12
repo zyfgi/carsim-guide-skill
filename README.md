@@ -35,6 +35,23 @@ For any CarSim task, read SKILL.md in carsim-guide-skill first and follow it.
 
 **Option C — standalone, no agent.** `scripts/carsim_batch.py` has no dependencies beyond Python 3 + pandas and works on its own (see Quick start).
 
+### Zero-effort: let your agent install it
+
+Paste this prompt into any AI coding agent — it will do the whole install end to end:
+
+```text
+Install the carsim-guide agent skill for me:
+1. Clone https://github.com/zyfgi/carsim-guide-skill into a skills directory.
+   Preferred target: ~/.agents/skills/carsim-guide (cross-tool standard).
+   Alternatives: ~/.claude/skills/carsim-guide (Claude Code), or
+   .agents/skills/carsim-guide in the current project.
+2. If git is unavailable or blocked, download the ZIP from
+   https://github.com/zyfgi/carsim-guide-skill/archive/refs/heads/master.zip
+   and extract it to the same target.
+3. Verify SKILL.md exists inside the installed carsim-guide folder and show
+   me its name/description frontmatter to confirm the install.
+```
+
 ## Quick start (fresh machine → first run)
 
 1. Locate the CarSim install (`<PROG>` = `…\CarSim2024.0_Prog`, `<DATADIR>` = `…\CarSim2024.0_Data`).
