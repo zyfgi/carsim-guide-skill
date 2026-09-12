@@ -153,11 +153,14 @@ Recommended curve radius ≥ 200 m (ordinary-driving-level lateral acceleration)
 ```text
 M_SU 1134            ! sprung mass, kg
 IZZ_SU 1343.1        ! sprung yaw inertia, kg·m²
-LX_CG_SU 1.040       ! CG to front axle, m
-H_CG 0.540           ! CG height, m
+LX_CG_SU 1040        ! CG to front axle, mm
+H_CG_SU 540          ! CG height, mm
+Y_CG_SU 150          ! lateral CG offset, mm, left positive (base default 0)
 RRE(1,1) 287.0       ! effective rolling radius, mm; 1,1=FL 1,2=FR 2,1=RL 2,2=RR
 R0(1,1) 287.0        ! unloaded radius, mm
 ```
+
+**Y_CG_SU quirk (verified in controlled A/B/C/D runs)**: the static left-right tire-load split responds exactly linearly to the value, but measures ≈2.07× the naive rigid prediction `W_total·y_CG_total/track` (the solver's own echo shows the correct total CG via `Y_CG_TL` ≈ m_SU/m_total·y_SU, so the factor is an internal implementation detail). For ground-truth lateral CG, read the `Y_CG_TL` (CALC) line from `run_echo.par` — do not invert the Fz split naively.
 
 ## 7. GUI-only decorations (what breaks direct solver reads)
 

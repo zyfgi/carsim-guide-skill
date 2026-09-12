@@ -119,7 +119,7 @@ def _dedupe(rows):
 
 
 def override_par(base_run_all, tstop, speed_rows, steer_rows,
-                 outputs=None, mu=0.9, tstep=TSTEP):
+                 outputs=None, mu=0.9, tstep=TSTEP, extra_lines=()):
     """Build override.par text: base reference + run switches + control tables.
 
     Key switches (see SKILL.md section 3 for the full rationale):
@@ -135,6 +135,9 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
       MU_ROAD_CARPET      friction override; set mu to match the base road or
                           the intended scenario (a low-mu base needs this to
                           run ordinary scenarios)
+    extra_lines: extra keyword lines inserted after the control tables and
+      before the WRT declarations - the standard slot for parameter overrides
+      such as static payloads: ["M_SU 1254.0", "IZZ_SU 1743.1"].
     """
     outputs = outputs if outputs is not None else OUTPUTS_CORE + OUTPUTS_EXTRA
     lines = [
@@ -159,6 +162,7 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
     # rows: time [s], steering wheel angle [deg] - open loop
     lines += ["OPT_DM 0", "OPT_STR_BY_TRQ 0"]
     lines += _table("STEER_SW_TABLE", _dedupe(steer_rows))
+    lines += list(extra_lines)  # parameter overrides (e.g. static payloads)
     lines += ["WRT_" + name for name in outputs]
     lines += ["LOG_ENTRY scenario override", "END", ""]
     return "\n".join(lines)

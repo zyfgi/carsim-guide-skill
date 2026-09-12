@@ -37,6 +37,7 @@ CarSim parses parsfiles **last-write-wins**: a keyword written later replaces an
 | `MU_ROAD_CARPET 2D_STEP` | friction override (3-column table: s, mu_left, mu_right). If the base is a low-mu scenario, ordinary scenarios **must** override it or the tires saturate early |
 | `OPT_DM 0` + `STEER_SW_TABLE` | **open-loop steering is the only reliable steering override**. A closed-loop LTARG_TABLE is row-appended, not replaced (observed "tracking" a phantom target 14.6 m away) — never use it to override |
 | `LOG_ENTRY` + `END` | log marker + parsfile terminator (every par needs END) |
+| `extra_lines=` (API) | free keyword lines injected after the tables, before the WRT block — the standard slot for parameter overrides such as static payloads: `["M_SU 1254.0", "Y_CG_SU 150.0"]` (mass verified exact; see SKILL.md §5.3 for the Y_CG_SU quirk) |
 
 The `_table()` helper emits `NAME <interp> … ENDTABLE` blocks; `_dedupe()` drops repeated abcissa values — CarSim rejects duplicate x values inside a table.
 
@@ -109,6 +110,7 @@ sim = make_scenario(
     speed_rows=[(0, 43), (30, 65), (60, 72), (90, 40), (300, 50)],   # s, km/h
     steer_rows=[(0, 0), (95, 14), (105, 14), (110, -14), (120, -14), (300, 0)],  # s, deg
     mu=0.9,
+    extra_lines=["M_SU 1254.0"],  # static payload override (verified exact)
 )
 run_solver(sim, prog="C:/CarSim/CarSim2024.0_Prog", timeout=600)
 df = read_run_csv("C:/work/lane_change/run.csv", columns=["Time", "Vx", "Ay", "AVz"])

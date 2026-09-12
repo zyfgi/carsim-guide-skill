@@ -162,7 +162,7 @@ Wraps the entire §3 workflow into three functions plus a CLI entry point (param
 
 | API | Purpose |
 |---|---|
-| `make_scenario(out_dir, base_run_all, prog, datadir, tstop, speed_rows, steer_rows, mu=0.9)` | writes override.par + simfile.sim, returns the simfile path |
+| `make_scenario(out_dir, base_run_all, prog, datadir, tstop, speed_rows, steer_rows, mu=0.9, extra_lines=())` | writes override.par + simfile.sim, returns the simfile path; `extra_lines` injects parameter overrides after the tables (e.g. `["M_SU 1254.0", "Y_CG_SU 150.0"]` — static payloads) |
 | `run_solver(simfile_path, prog, timeout=600)` | calls the CLI via subprocess (argv list + forward slashes), judges success by `Termination at simulation time`, raises with the output tail on failure |
 | `read_run_csv(path, columns=None)` | pandas-reads run.csv into a DataFrame in **SI units** (auto-drops unreliable columns; pass `columns` for big files) |
 | `si_scale(col)` / `summarize(df)` | column name → SI factor; quick stats |
@@ -219,10 +219,14 @@ Sign conventions (verified): left turn → AVz > 0; My_Dr positive = drive, nega
 ### 5.3 Scenario-control syntax cheat sheet (for overrides)
 
 ```
-! Load / inertia / tire-radius parameterization (load-condition scenarios)
-M_SU <kg>        IZZ_SU <kg·m²>     LX_CG_SU <m>     H_CG <m>
+! Load / inertia / tire-radius parameterization (load scenarios; inject via
+! make_scenario(..., extra_lines=[...]) — verified exact, last-write-wins)
+M_SU <kg>     IZZ_SU <kg·m²>     LX_CG_SU <mm>     H_CG_SU <mm>
+Y_CG_SU <mm>  ! lateral sprung-CG offset, left positive (see quirk below)
 RRE(axle,side) <mm>  R0(axle,side) <mm>     ! 1,1=FL 1,2=FR 2,1=RL 2,2=RR
 ```
+
+**Y_CG_SU quirk (A/B/C/D controlled runs)**: the static left-right tire-load split responds *exactly linearly* to the value (mass unchanged, base default 0), but measures **≈2.07× the naive rigid prediction** `W_total·y_CG_total/track` — CarSim's own echo confirms the total CG (`Y_CG_TL` ≈ m_SU/m_total·y_SU), so the factor is an internal implementation detail, not your model being wrong. Consequence: never invert the Fz split naively to get lateral CG — for ground truth read the `Y_CG_TL` (CALC) line from `run_echo.par`.
 
 ---
 
