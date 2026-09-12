@@ -1,6 +1,8 @@
 # carsim-guide-skill
 
-A self-contained **AI agent skill** for operating **CarSim 2024.0** headless — no GUI after setup, no database writes, no Simulink, no MCP server required. Everything here was validated by actually running it end to end (multi-scenario batch runs, unit checks, sign-convention checks, vehicle switching, error paths).
+A self-contained knowledge pack + Python tooling for operating **CarSim 2024.0** headless — no GUI after setup, no database writes, no Simulink, no MCP server required. Everything here was validated by actually running it end to end (multi-scenario batch runs, unit checks, sign-convention checks, vehicle switching, error paths).
+
+Works with **any AI coding agent** — or no agent at all.
 
 ## What it gives you
 
@@ -12,16 +14,26 @@ A self-contained **AI agent skill** for operating **CarSim 2024.0** headless —
 
 ## Install
 
-**As a ZCode (or compatible) skill** — clone into your skills directory:
+**Option A — as an agent skill (any agent that supports the Agent Skills convention, i.e. a `SKILL.md` with YAML frontmatter).** Clone the repo into your agent's skills directory; the skill auto-triggers on CarSim-related tasks. Common locations:
 
 ```bash
-# personal (all projects)
+# cross-tool standard (personal / project-level)
 git clone https://github.com/zyfgi/carsim-guide-skill ~/.agents/skills/carsim-guide
-# or project-level
 git clone https://github.com/zyfgi/carsim-guide-skill .agents/skills/carsim-guide
+
+# Claude Code
+git clone https://github.com/zyfgi/carsim-guide-skill ~/.claude/skills/carsim-guide
 ```
 
-The skill auto-triggers on any CarSim-related task. It is equally usable **standalone**: `scripts/carsim_batch.py` has no dependencies beyond Python 3 + pandas and works without the skill system.
+If your agent uses a different directory, check its docs — anything that discovers `SKILL.md` files works.
+
+**Option B — as plain context (agents without skill support).** The whole pack is ordinary Markdown. Just point your agent at it, e.g. add one line to your `AGENTS.md` / rules file:
+
+```
+For any CarSim task, read SKILL.md in carsim-guide-skill first and follow it.
+```
+
+**Option C — standalone, no agent.** `scripts/carsim_batch.py` has no dependencies beyond Python 3 + pandas and works on its own (see Quick start).
 
 ## Quick start (fresh machine → first run)
 
