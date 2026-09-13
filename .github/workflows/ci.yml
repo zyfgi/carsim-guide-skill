@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate skill structure
+        run: |
+          python - <<'PY'
+          import ast, json, re
+          text = open("SKILL.md", encoding="utf-8").read()
+          m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+          assert m, "SKILL.md must open with a --- frontmatter block"
+          fm = m.group(1)
+          name = re.search(r"^name:\s*(\S+)", fm, re.M)
+          desc = re.search(r"^description:\s*(.+)", fm, re.M)
+          assert name and re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name.group(1)), \
+              "frontmatter name missing or not kebab-case"
+          assert desc and len(desc.group(1)) > 50, \
+              "frontmatter description missing or too short"
+          n_lines = text.count("\n") + 1
+          assert n_lines < 500, f"SKILL.md is {n_lines} lines (limit 500)"
+          for f in ("scripts/carsim_batch.py", "scripts/dump_dll_exports.py",
+                    "examples/param_sweep.py"):
+              ast.parse(open(f, encoding="utf-8").read())
+          evals = json.load(open("evals/evals.json", encoding="utf-8"))
+          kinds = [e["type"] for e in evals["evals"]]
+          assert kinds.count("positive_trigger") >= 3, "need >= 3 positive trigger evals"
+          assert kinds.count("negative_trigger") >= 2, "need >= 2 negative trigger evals"
+          assert kinds.count("behavior") >= 1, "need >= 1 behavior eval"
+          print("skill structure OK")
+          PY

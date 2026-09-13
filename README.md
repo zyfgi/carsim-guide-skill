@@ -27,6 +27,11 @@ git clone https://github.com/zyfgi/carsim-guide-skill .agents/skills/carsim-guid
 
 # Claude Code
 git clone https://github.com/zyfgi/carsim-guide-skill ~/.claude/skills/carsim-guide
+
+# or keep the repo wherever you like and link it in
+git clone https://github.com/zyfgi/carsim-guide-skill ~/src/carsim-guide-skill
+ln -s ~/src/carsim-guide-skill ~/.agents/skills/carsim-guide    # macOS / Linux
+# Windows (cmd, admin): mklink /D "%USERPROFILE%\.agents\skills\carsim-guide" "C:\src\carsim-guide-skill"
 ```
 
 Or hand the install to your agent — paste this prompt:
@@ -61,15 +66,23 @@ The skill auto-triggers on CarSim-related work; `SKILL.md` is the entry point yo
 - CarSim 2024.0 (Windows x64) with a valid license — GUI open or `cslm.exe` running
 - Python 3.x with pandas (the scripts also run standalone, e.g. in CI)
 
+**Verified environments**: CarSim 2024.0, Windows 10/11 x64, Python 3.14 + pandas 3.0 — any reasonably recent Python 3 + pandas should work.
+
+**Other CarSim versions**: the workflow is version-agnostic in principle — adjust the `CarSim2024.0_Prog/_Data` directory names and `PRODUCT_VER` in the simfile, then re-run the quick-start acceptance check. The pitfall list was verified against 2024.0 only; treat other versions as unverified.
+
 ## Repository layout
 
 ```
 SKILL.md                           # entry point: mechanics, override pattern, channels & units, pitfalls
 scripts/carsim_batch.py            # generate / run / read workflow (CLI + library API)
 scripts/dump_dll_exports.py        # zero-dependency DLL export-symbol enumerator
+examples/param_sweep.py            # runnable batch parameter-sweep example
+evals/evals.json                   # trigger/behavior tests (3 positive, 2 negative, 1 behavior)
 references/python-interface.md     # script walkthrough + unit conversion contract
 references/database-exploration.md # grep-based database exploration (no MCP)
 references/dataset-syntax.md       # .par dataset syntax templates
+references/vs-c-api.md             # VS C API stepping fallback (prototype)
+.github/workflows/ci.yml           # frontmatter / syntax / size checks on push
 ```
 
 ## Disclaimer

@@ -48,8 +48,35 @@ Note: relative paths resolve against DATADIR; powertrains keep linking into the 
 Just read the file. Scalars are `KEYWORD value`; tables are `KEYWORD <interp> … ENDTABLE` blocks; `!` starts a comment, `#` lines are GUI metadata. Block-by-block syntax is in [dataset-syntax.md](dataset-syntax.md). Quick parameter extraction:
 
 ```bash
-grep -E "^(M_SU|IZZ_SU|LX_CG_SU|H_CG) " "<DATADIR>/Vehicles/Sprung_Mass/SprMass_<id>.par"
+grep -E "^(M_SU|IZZ_SU|LX_CG_SU|Y_CG_SU|H_CG_SU) " "<DATADIR>/Vehicles/Sprung_Mass/SprMass_<id>.par"
 ```
+
+More recipes:
+
+```bash
+# procedures that use closed-loop speed control
+grep -r -l "INSTALL_SPEED_CONTROLLER" "<DATADIR>/Procedures" --include=*.par
+
+# friction datasets: peak friction values
+grep -r -E "MU_MAX" "<DATADIR>/Roads/Friction" --include=*.par | head
+
+# per-wheel motor-torque import channels
+grep -r -l "Wheel Motors Command" "<DATADIR>/IO_Channels/I_Channels" --include=*.par
+
+# custom-geometry roads built from the Segment Builder
+grep -r -l "NSEGMENTS" "<DATADIR>/Roads" --include=*.par | head
+```
+
+Keyword → dataset-family cheat sheet (saw a keyword, need its source dataset):
+
+| Keyword | Dataset family |
+|---|---|
+| `M_SU`, `IZZ_SU`, `LX_CG_SU`, `H_CG_SU`, `Y_CG_SU` | `Vehicles\Sprung_Mass\` |
+| `SPEED_TARGET_TABLE` | `Control\Speed_t\` |
+| `LTARG_TABLE`, `OPT_DM 3` | `Control\Driver\` (path follower) |
+| `NSEGMENTS`, `SEGMENT_TYPE` | Path: Segment Builder (referenced by road datasets) |
+| `MU_ROAD_CARPET`, `MU_MAX` | `Roads\Friction\` / road datasets |
+| `IMPORT` channel names | `IO_Channels\I_Channels\` |
 
 ## 4. Look up keyword meaning / units (≈ MCP describe_keyword)
 

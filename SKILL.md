@@ -1,35 +1,38 @@
 ---
 name: carsim-guide
-description: CarSim 2024.0 (VS Solver) runtime mechanics and headless scripting guide. Covers the override.par pattern (GUI-expanded base + keyword overrides), a self-contained simfile template, CLI batch runs, Python interface scripts (generate / run / read CSV), output channels and unit conversion, the VS C API (ctypes) fallback, database exploration, and a field-tested pitfall list. Self-contained - no CarSim MCP required. Use for ANY task involving CarSim, the VS solver, carsim_64.dll, simfile.sim, Run_all.par, ERD/CSV result reading, creating or modifying vehicle / procedure / road datasets, or running CarSim headless, in batch, or in closed loop - even if the user never mentions the runtime mechanics.
+description: CarSim 2024.0 (VS Solver) runtime mechanics and headless scripting guide. Covers the override.par pattern (GUI-expanded base + keyword overrides), a self-contained simfile template, CLI batch runs, Python interface scripts (generate / run / read CSV), output channels and unit conversion, database exploration, and a field-tested pitfall list. Self-contained - no CarSim MCP required. Use when dealing with CarSim headless runs, VS solver CLI, simfile.sim / Run_all.par / override.par workflows, ERD/CSV result reading, or vehicle / procedure / road dataset changes - even if the user never mentions the runtime mechanics.
 ---
 
 # CarSim 2024.0 Runtime Mechanics & Operation Guide (agent reference, field-verified)
 
-Updated 2026-09-12. Everything marked "verified" was validated by actually running it (multi-scenario batch runs succeeded, RTIME≈0.05, roughly 17× real time; performance varies by machine). This skill is **self-contained**: no CarSim MCP dependency, no Simulink, no VS C API. Paths are not machine-bound — resolve the placeholders on the target machine.
+Updated 2026-09-13. Everything marked "verified" was validated by actually running it (multi-scenario batch runs, RTIME≈0.05; performance varies by machine). Self-contained: no MCP, no Simulink, no VS C API. Paths are placeholders — resolve on the target machine.
 
 **Companion files (read on demand, not upfront):**
-- `scripts/carsim_batch.py` — full workflow script: generate override.par/simfile, run headless, read CSV
+- `scripts/carsim_batch.py` — full workflow: generate override.par/simfile, run headless, read CSV (CLI + library)
 - `scripts/dump_dll_exports.py` — zero-dependency DLL export-symbol enumerator
-- `references/python-interface.md` — read before modifying/extending carsim_batch.py (walkthrough + unit contract)
-- `references/database-exploration.md` — read when finding vehicles / inspecting assemblies / looking up keyword units (grep-based, no MCP)
-- `references/dataset-syntax.md` — read when you need to understand or edit database datasets (.par syntax templates)
+- `examples/param_sweep.py` — runnable batch parameter-sweep example
+- `references/python-interface.md` — before modifying/extending the script: keyword rationale, simfile fields, unit contract, failure triage
+- `references/database-exploration.md` — finding vehicles / assembly trees / keyword units (grep recipes, no MCP)
+- `references/dataset-syntax.md` — .par dataset syntax templates
+- `references/vs-c-api.md` — VS C API (ctypes) stepping fallback, only if hard-real-time coupling is required
+- `evals/evals.json` — trigger/behavior tests for this skill
 
 ---
 
 ## 0. Quick start (fresh machine → first successful run)
 
-1. **Locate the installation**: find the CarSim install root (program dir `<PROG> = …\CarSim2024.0_Prog`, database `<DATADIR> = …\CarSim2024.0_Data`, sibling directories). Look in the Start Menu, running processes, or the GUI title bar.
-2. **License**: keep the CarSim GUI open, or start `<PROG>\Programs\cslm.exe`. Without a license the solver (DLL/CLI) fails immediately.
-3. **Get a base (once per vehicle — the ONLY step that needs the GUI)**: in the GUI, open a Run Control that references the target vehicle → click **Run Math Model** → take `Results\Run_<uuid>\Run_all.par` as the base. If no suitable Run Control exists, clone one (vehicle + procedure + camera, three PARSFILE lines — see references/database-exploration.md §5).
-4. **Run the first scenario** (65 s straight cruise at 50 km/h):
+1. **Locate the install**: `<PROG> = …\CarSim2024.0_Prog`, `<DATADIR> = …\CarSim2024.0_Data` (siblings).
+2. **License**: keep the CarSim GUI open, or start `<PROG>\Programs\cslm.exe`.
+3. **Get a base (once per vehicle — the ONLY GUI step)**: open a Run Control → **Run Math Model** → take `Results\Run_<uuid>\Run_all.par`.
+4. **First run** (65 s straight cruise at 50 km/h):
    ```
    python scripts/carsim_batch.py --prog <PROG> --datadir <DATADIR> \
-       --base <absolute path to base Run_all.par> --out <scenario dir> \
+       --base <Run_all.par> --out <scenario dir> \
        --tstop 65 --speed-profile "0:50,65:50" --run --read
    ```
-5. **Acceptance check**: stdout ends with `Termination at simulation time = 65` plus an `RTIME=...` line; the scenario directory contains `run.csv` (1 kHz text CSV).
+5. **Acceptance**: stdout ends with `Termination at simulation time = 65 s`; `<out>/run.csv` exists (1 kHz CSV).
 
-Daily runs end here — **no GUI, no database writes, no Simulink, no C API**.
+Daily runs end here — no GUI, no database writes, no Simulink, no C API.
 
 ---
 
@@ -40,278 +43,117 @@ Daily runs end here — **no GUI, no database writes, no Simulink, no C API**.
 | Program root PROG | `<CarSim install root>\CarSim2024.0_Prog` |
 | Database DATADIR (read-only) | `<CarSim install root>\CarSim2024.0_Data` |
 | CLI solver wrapper | `<PROG>\Programs\VS_SolverWrapper_CLI_64.exe` |
-| Solver DLL (64-bit) | `<PROG>\Programs\solvers\carsim_64.dll` (exports the full VS C API, 300+ symbols; dependent DLLs sit next to it) |
-| License | a running GUI provides it; headless → run `Programs\cslm.exe` |
-| Manual PDFs | `Help\Memos\` (VS_Commands_API, VS_SolverWrapper, Procedures_VS_Commands, …), `Help\Manuals\VS_SDK.pdf` |
-| Python | bring your own Python 3.x (with pandas; conda/venv both fine). CarSim ships `Programs\Python\Python64` (3.10, no pip) |
+| Solver DLL (64-bit) | `<PROG>\Programs\solvers\carsim_64.dll` (full VS C API, 300+ symbols) |
+| License | GUI running, or `Programs\cslm.exe` headless |
+| Manuals | `Help\Memos\*.pdf`, `Help\Manuals\VS_SDK.pdf` |
+| Python | bring your own 3.x with pandas; CarSim's bundled Python (no pip) is unused |
 
-**Major pitfall**: the official `Programs\Python\vs.py` depends on the `_vs` extension (i.e. `PyInit__vs` inside carsim_64.dll); importing it directly **segfaults**. Do not go down that road.
+**Pitfall**: the official `Programs\Python\vs.py` / `_vs` extension **segfaults** on import — never use it.
 
 ---
 
-## 2. Overall run model (including two falsified misconceptions)
+## 2. Overall run model (two falsified misconceptions)
 
-The VS solver is a pure computational DLL. The GUI's Run button does two things: ① **expands** the database datasets into Run_all.par; ② calls the DLL. The CLI wrapper only does ②.
+The GUI's Run does two things: ① expands database datasets into Run_all.par, ② calls the solver DLL. The CLI wrapper only does ②.
 
-**Misconception 1 (falsified by testing): the solver cannot recursively parse raw database .par files.**
-Raw datasets contain GUI-only decorations (`SET_UNITS_TABLE_ROW`, `symbol_add`, `.ani` animator references, …). A thin parsfile referencing a vehicle assembly first fails with `SET_UNITS_TABLE_ROW ... doesn't exist`, and after cleaning, deterministically segfaults at the hanging-damper dataset; the same reproduces on a vehicle known to run. **Conclusion: the solver only accepts GUI-expanded content. The correct approach = generate a base Run_all.par once per vehicle via the GUI, then run every scenario through the override pattern (§3). Do not write your own expander.**
+- **Misconception 1 (falsified)** — the solver cannot recursively parse raw database .par files (GUI-only decorations; deterministic segfault at the hanging-damper dataset). It only accepts GUI-expanded content. Correct loop: one GUI base per vehicle, then override everything. Do not hand-write thin parsfiles; do not write your own expander.
+- **Misconception 2 (demoted)** — online validation does NOT require VS C API stepping. A 1 kHz CSV batch + causal replay by arrival time satisfies the "only arrived observations" constraint and is 16×+ faster.
 
-**Misconception 2 (demoted to fallback): online validation does NOT require step-by-step VS C API integration.**
-The ctypes stepping prototype is sound (§8) but unnecessary — a 1 kHz CSV batch run + causal replay by arrival time (observations tagged with arrival_time) strictly satisfies the "only use observations that have arrived" online constraint, and is 16×+ faster.
-
-Data flow: `simfile.sim` → `INPUT` parsfile (= base + overrides) → parse & build model → integrate → `ERDFILE` writes CSV output.
+Data flow: `simfile.sim` → `INPUT` parsfile (base + overrides) → parse → integrate → `ERDFILE` CSV.
 
 ---
 
 ## 3. The override.par pattern (core mechanism, verified)
 
-Principle: CarSim parses parsfiles **last-write-wins**. The first line of override.par pulls in the base; every keyword/table after it overrides the base's entry.
-
-### 3.1 override.par (example: 65 s straight cruise at 50 km/h)
+CarSim parses parsfiles **last-write-wins**: reference the base first, then every keyword/table after it overrides the base. Override skeleton (full annotated template + rationale: `references/python-interface.md` §1; the script generates it):
 
 ```
 PARSFILE
-PARSFILE <absolute path to base Run_all.par>  ! base: GUI-expanded Run_all.par
-OPT_ERROR_DIALOG 0                         ! headless: never pop an error dialog
-OPT_ALL_WRITE 0                            ! write only the WRT channels below
-OPT_VS_FILETYPE 4                          ! ERD output as text CSV (key switch)
-TSTART 0
-TSTOP 65.0
-OPT_STOP 0                                 ! disable stop-on-distance
-SSTOP 100000
-TSTEP 0.0010000                            ! 1 ms step
-IPRINT 1                                   ! one CSV row per step -> 1 kHz
-INSTALL_SPEED_CONTROLLER                   ! -- closed-loop speed control --
-OPT_SC 1
-OPT_BK_SC 1
-OPT_SC_ENGINE_BRAKING 1                    ! EV: prefer regen braking on decel
-SPEED_TARGET_CONSTANT 0
-SPEED_TARGET_S_CONSTANT 0
-SPEED_TARGET_COMBINE ADD
-SPEED_TARGET_TABLE LINEAR_FLAT             ! rows: time s, speed km/h; initial speed = first row (verified)
-0.000000, 50.000000
-65.000000, 50.000000
-ENDTABLE
-MU_ROAD_CARPET 2D_STEP                     ! -- friction override (required when a low-mu base runs normal scenarios) --
-0, -20, 20
--500, 0.900000, 0.900000
-1000, 0.900000, 0.900000
-ENDTABLE
-OPT_DM 0                                   ! -- open-loop steering (the only reliable steering override) --
-OPT_STR_BY_TRQ 0
-STEER_SW_TABLE LINEAR_FLAT                 ! rows: time s, steering wheel angle deg
-0.000000, 0.000000
-65.000000, 0.000000
-ENDTABLE
-WRT_Vx                                     ! -- output channel declarations (CSV columns) --
-WRT_Ax
-WRT_Ay
-WRT_AVz
-! (full channel list in §5.1)
-LOG_ENTRY anything
-END
+PARSFILE <absolute path to base Run_all.par>   ! GUI-expanded base
+OPT_ERROR_DIALOG 0 / OPT_ALL_WRITE 0 / OPT_VS_FILETYPE 4   ! headless + CSV output
+TSTART 0 / TSTOP <s> / OPT_STOP 0 / SSTOP 100000 / TSTEP 0.001 / IPRINT 1
+INSTALL_SPEED_CONTROLLER / OPT_SC 1 / OPT_BK_SC 1 / SPEED_TARGET_COMBINE ADD
+SPEED_TARGET_TABLE LINEAR_FLAT                  ! rows: time s, km/h; initial speed = first row
+  <rows> ENDTABLE
+MU_ROAD_CARPET 2D_STEP                          ! friction override (low-mu base MUST be overridden)
+  <s, mu_left, mu_right rows> ENDTABLE
+OPT_DM 0 / OPT_STR_BY_TRQ 0 / STEER_SW_TABLE    ! open-loop steering — the ONLY reliable steering override
+  <rows: time s, SW angle deg> ENDTABLE
+<extra_lines: parameter overrides, e.g. M_SU / Y_CG_SU / IZZ_SU / RRE>
+WRT_<channel> ...                               ! output whitelist
+LOG_ENTRY / END
 ```
 
-### 3.2 simfile.sim (self-contained; all output goes to the scenario directory)
+**simfile** (§3.2, self-contained — all output paths into the scenario dir): `FILEBASE/INPUT/INPUTARCHIVE/ECHO/FINAL/LOGFILE/ERDFILE` + `PROGDIR/DATADIR/PRODUCT_ID CarSim/PRODUCT_VER 2024.0/VEHICLE_CODE i_i/EXT_MODEL_STEP/PORTS_IMP 0/PORTS_EXP 0/DLLFILE …\carsim_64.dll` (**always pin 64-bit**; GUI-generated files may say 32-bit) + `END`. Exact template: `carsim_batch.simfile()`.
 
-```
-SIMFILE
-FILEBASE <scenario dir>/run
-INPUT <scenario dir>/override.par
-INPUTARCHIVE <scenario dir>/run_all.par
-ECHO <scenario dir>/run_echo.par           ! parse echo: variable-verification evidence
-FINAL <scenario dir>/run_end.par
-LOGFILE <scenario dir>/run_log.txt         ! lists every dataset actually used
-ERDFILE <scenario dir>/run.csv             ! OPT_VS_FILETYPE 4 -> CSV
-PROGDIR <PROG>
-DATADIR <DATADIR>
-PRODUCT_ID CarSim
-PRODUCT_VER 2024.0
-VEHICLE_CODE i_i
-EXT_MODEL_STEP 0.00100000
-PORTS_IMP 0
-PORTS_EXP 0
-DLLFILE <PROG>\Programs\solvers\carsim_64.dll   ! always pin 64-bit (GUI-generated ones may say 32-bit)
-END
-```
+**Run** (§3.3): `"<PROG>\Programs\VS_SolverWrapper_CLI_64.exe" -sim <simfile>`. Success = stdout `Termination at simulation time = <TSTOP>` (RTIME lands in run_log.txt / run_end.par). Use forward slashes on the command line — backslash escaping in Git Bash fails silently.
 
-### 3.3 Run (headless)
-
-```
-"<PROG>\Programs\VS_SolverWrapper_CLI_64.exe" -sim <absolute simfile path>
-```
-
-Success marker: stdout ends with `Termination at simulation time = <TSTOP>`; the `Computational time ratio: RTIME=...` line lands in `run_log.txt` / `run_end.par`, not stdout.
-**Path style**: forward slashes `C:/...` are safest on the command line (backslash escaping in Git Bash fails silently — stepped on this; Python subprocess with an argv list avoids the issue).
-
-### 3.4 Other CLI capabilities
-
-```
-VS_SolverWrapper_CLI_64.exe -par <expanded parsfile>        # use an expanded parsfile directly
-VS_SolverWrapper_CLI_64.exe -uuid <Run_xxx-uuid>           # use a Run Control that has Results in the DB
-VS_SolverWrapper_CLI_64.exe <simfile> -rundoc -imptxt -outtxt   # generate docs only, no run
-#   -imptxt/-outtxt = Import/Export variable lists; -rundoc = Run_Doc.par
-#   -gen_run_all does not work in practice (needs DB context)
-```
+**Other CLI flags** (§3.4): `-par <expanded parsfile>`, `-uuid <Run uuid>`, `<simfile> -rundoc -imptxt -outtxt` (docs only; `-gen_run_all` does not work).
 
 ---
 
 ## 4. Python tooling (scripts/carsim_batch.py)
 
-Wraps the entire §3 workflow into three functions plus a CLI entry point (parameterized, no hardcoded paths):
-
 | API | Purpose |
 |---|---|
-| `make_scenario(out_dir, base_run_all, prog, datadir, tstop, speed_rows, steer_rows, mu=0.9, extra_lines=())` | writes override.par + simfile.sim, returns the simfile path; `extra_lines` injects parameter overrides after the tables (e.g. `["M_SU 1254.0", "Y_CG_SU 150.0"]` — static payloads) |
-| `run_solver(simfile_path, prog, timeout=600)` | calls the CLI via subprocess (argv list + forward slashes), judges success by `Termination at simulation time`, raises with the output tail on failure |
-| `read_run_csv(path, columns=None)` | pandas-reads run.csv into a DataFrame in **SI units** (auto-drops unreliable columns; pass `columns` for big files) |
-| `si_scale(col)` / `summarize(df)` | column name → SI factor; quick stats |
-| Constants | `OUTPUTS_CORE/EXTRA` (WRT channel set), `TRUTH_ONLY_PREFIXES` (ground-truth prefixes), `UNRELIABLE_COLS` (banned columns) |
+| `make_scenario(out_dir, base_run_all, prog, datadir, tstop, speed_rows, steer_rows, mu=0.9, extra_lines=())` | writes override.par + simfile.sim, returns simfile path; `extra_lines` injects parameter overrides (static payloads) |
+| `run_solver(simfile_path, prog, timeout=600)` | subprocess CLI call (argv list + forward slashes), success-judged, raises with output tail |
+| `read_run_csv(path, columns=None)` | pandas → **SI-unit** DataFrame (auto-drops unreliable columns, respects requested order) |
+| `si_scale(col)` / `summarize(df)` / constants | column→SI factor; stats; `OUTPUTS_*`, `TRUTH_ONLY_PREFIXES`, `UNRELIABLE_COLS` |
 
-Command line (straight-cruise example with run + read-back):
-
-```
-python scripts/carsim_batch.py --prog <PROG> --datadir <DATADIR> \
-    --base <base.par> --out <scenario dir> --tstop 65 \
-    --speed-profile "0:50,65:50" --steer-profile "0:0,65:0" --run --read
-```
-
-**Before changing templates / adding channels / extending the script, read `references/python-interface.md`** (rationale for every override keyword, simfile field table, unit contract, failure triage).
-
-Companion `scripts/dump_dll_exports.py`: `python dump_dll_exports.py <any.dll>` lists all export symbols (zero-dependency PE parsing).
+CLI: `--prog --datadir --base --out --tstop --speed-profile "t:v,…" --steer-profile "t:v,…" --mu --run --read --verbose`. See `examples/param_sweep.py` for a runnable batch sweep.
 
 ---
 
-## 5. Output channels and units (verified against solver output)
+## 5. Output channels and units (verified)
 
-### 5.1 Recommended WRT whitelist
+Recommended WRT set (`OUTPUTS_CORE/EXTRA` in the script): cg states (`Vx Vy Ax Ay AVz`), road-wheel steer + wheel speeds + drive/brake torques per corner (`Steer_/AVy_/My_Dr_/My_Bk_{L1,R1,L2,R2}`), tire truths (`Fx_/Fy_/Fz_/Kappa_/Alpha_`), `ROLL PITCH`, motor speeds `AV_Mt_D1_*/D2_*`. Useful base columns: `Xo Yo Yaw Station Throttle SocBttry`.
 
-```
-Vx Vy Ax Ay AVz                       ! cg longitudinal/lateral speed, accelerations, yaw rate
-Steer_L1 Steer_R1 Steer_L2 Steer_R2   ! road-wheel angles (not steering wheel angle)
-AVy_L1 AVy_R1 AVy_L2 AVy_R2           ! four wheel spin speeds
-My_Dr_L1 My_Dr_R1 My_Dr_L2 My_Dr_R2   ! drive/regen torques (regen negative)
-My_Bk_L1 My_Bk_R1 My_Bk_L2 My_Bk_R2   ! friction brake torques
-Fx_L1 Fx_R1 Fx_L2 Fx_R2               ! tire longitudinal forces (truth - evaluation only!)
-Fy_L1 Fy_R1 Fy_L2 Fy_R2               ! tire lateral forces (truth)
-Fz_L1 Fz_R1 Fz_L2 Fz_R2               ! vertical loads (truth)
-Kappa_L1 ... Alpha_L1 ...             ! slip ratios / slip angles (truth)
-ROLL PITCH                            ! sprung roll/pitch (CSV columns are Roll/Pitch, capitalized)
-AV_Mt_D1_L AV_Mt_D1_R AV_Mt_D2_L AV_Mt_D2_R   ! four motor speeds
-```
+**Unreliable**: `Lat_Veh`/`Lat_Targ` drift (up to 15 m) — lateral position from `Yo/Yaw`. **Slip quirk**: `Kappa_*` has a t≈0 normalization spike after a standing start (identical regardless of friction) — exclude t < 0.5 s when comparing slip.
 
-Useful columns already in the base: `Xo Yo Yaw Station Throttle SocBttry`, etc. **The `Lat_Veh`/`Lat_Targ` columns are unreliable (verified drift artifacts, up to 15 m) — derive lateral position from `Yo/Yaw` instead.** **Slip-ratio quirk**: `Kappa_*` samples near t≈0 after a standing start show a normalization spike (v≈0 in the denominator), identical regardless of friction — exclude t < 0.5 s when comparing slip levels.
+Units → SI (built into `read_run_csv`): Vx/Vy km/h÷3.6; Ax/Ay **g**×9.81; AVz/angles deg×π/180; AVy_* **rpm**×2π/60; forces/torques already SI. Signs (verified): left turn → AVz>0; My_Dr + = drive, − = regen; My_Bk ≤ 0 forward. Corners: L1=FL, R1=FR, L2=RL, R2=RR.
 
-### 5.2 Unit table (measured from CSV; SI factors are built into read_run_csv)
-
-| Channel | Native unit | → SI |
-|---|---|---|
-| Time | s | — |
-| Vx, Vy | km/h | ÷3.6 |
-| Ax, Ay | **g** | ×9.81 |
-| AVz | deg/s | ×π/180 |
-| Steer_* / Steer_SW / Roll / Pitch / Yaw / Alpha_* | deg | ×π/180 |
-| AVy_* (wheel speed) | **rpm** | ×2π/60 |
-| My_* / F*_* | N·m / N | — |
-
-Sign conventions (verified): left turn → AVz > 0; My_Dr positive = drive, negative = regen; My_Bk non-positive while moving forward. Wheel corners: `L1=FL, R1=FR, L2=RL, R2=RR`.
-
-### 5.3 Scenario-control syntax cheat sheet (for overrides)
-
-```
-! Load / inertia / tire-radius parameterization (load scenarios; inject via
-! make_scenario(..., extra_lines=[...]) — verified exact, last-write-wins)
-M_SU <kg>     IZZ_SU <kg·m²>     LX_CG_SU <mm>     H_CG_SU <mm>
-Y_CG_SU <mm>  ! lateral sprung-CG offset, left positive (see quirk below)
-RRE(axle,side) <mm>  R0(axle,side) <mm>     ! 1,1=FL 1,2=FR 2,1=RL 2,2=RR
-```
-
-**Y_CG_SU quirk (A/B/C/D controlled runs)**: the static left-right tire-load split responds *exactly linearly* to the value (mass unchanged, base default 0), but measures **≈2.07× the naive rigid prediction** `W_total·y_CG_total/track` — CarSim's own echo confirms the total CG (`Y_CG_TL` ≈ m_SU/m_total·y_SU), so the factor is an internal implementation detail, not your model being wrong. Consequence: never invert the Fz split naively to get lateral CG — for ground truth read the `Y_CG_TL` (CALC) line from `run_echo.par`.
+**Parameter overrides** (§5.3, inject via `extra_lines`): `M_SU <kg>`, `IZZ_SU <kg·m²>`, `LX_CG_SU/H_CG_SU/Y_CG_SU <mm>`, `RRE/R0(axle,side) <mm>`. **Y_CG_SU quirk (A/B/C/D verified)**: static left-right load split is exactly linear in the value but ≈**2.07×** the naive rigid prediction; ground-truth lateral CG = the `Y_CG_TL` (CALC) line in `run_echo.par` — never invert the Fz split naively.
 
 ---
 
 ## 6. New vehicle / database exploration
 
-The database is all plain-text .par files; grep covers all exploration (no MCP needed). For detailed commands and flows read **`references/database-exploration.md`**:
+The database is plain-text .par; grep covers everything (recipes in `references/database-exploration.md`): find datasets by `#FullDataName`, assembly trees via recursive `PARSFILE` lines, keyword units from `run_echo.par` → manuals → GUI. A run's actually-used datasets are listed in `run_log.txt`. Library map: `Vehicles\Assembly\` (entry), `Vehicles\Sprung_Mass\`, `Powertrain\`, `Procedures\`, `Runs\` (thin Run Controls — the base source), `Control\{Speed_t,Driver,Braking}\`, `Roads\{3D_Road,XY_Table,Friction}\`, `IO_Channels\I_Channels\`. Dataset IDs (UUIDs) differ per install — locate by name, never hardcode.
 
-- Find datasets by name: `grep -r -i "keyword" <DATADIR>/Vehicles/Assembly --include=*.par -l`; identity lives in the `#FullDataName` line;
-- Assembly tree: recursively follow `PARSFILE` lines; datasets actually used by a given run are listed in `run_log.txt`;
-- Keyword meaning/units: `run_echo.par` echo → `Help\Memos` manuals → GUI;
-- New vehicle: find it → clone a Run Control in the GUI → Run Math Model produces the new base → return to §3.
+New vehicle: find it → clone a Run Control in the GUI → Run Math Model → new base → back to §3. Dataset internals for reading/GUI-or-MCP editing: `references/dataset-syntax.md` (never hand-write thin parsfiles — Misconception 1).
 
-Dataset-internal syntax (Run Control / Procedure / speed controller / path follower / Segment-Builder road / GUI decoration list) is in **`references/dataset-syntax.md`** — use it only to read files or edit via GUI/MCP; **never** hand-write a thin parsfile for direct solver consumption (Misconception 1).
-
-Recommended convention: **treat the database as read-only**; keep self-built scenario files in your own project directory and reference DB datasets by absolute path.
+**Convention**: treat the database as read-only; keep scenario files in your own directory, referencing DB datasets by absolute path.
 
 ---
 
-## 7. Pitfall list (all stepped on — do not retry)
+## 7. Common mistakes (all field-tested — do not retry)
 
-1. **Never** feed a thin parsfile referencing a vehicle assembly directly to the solver (Misconception 1); **never** write your own expander (cleaning one error uncovers the next).
-2. **Never** import the `_vs` Python extension (vs.py): loading carsim_64.dll as an extension segfaults.
-3. **Never** override steering with a closed-loop LTARG_TABLE: same-name tables are **row-appended**, not replaced, and get tangled with the base's table (observed "tracking" a phantom target 14.6 m away). Open-loop `STEER_SW_TABLE` is the only verified steering override.
-4. Duplicate abcissa values in a table → parse error; dedupe before generating tables (`carsim_batch._dedupe`).
-5. Use forward slashes in CLI command paths; backslash escaping inside Git Bash loops fails silently (symptom: "results didn't change" — check the CSV timestamp first).
-6. A GUI-generated simfile may point DLLFILE at the 32-bit DLL → write your own, pinned to 64-bit.
-7. License: start `cslm.exe` when headless; for "Unable to load library", check license and DLL path first.
-8. `OPT_ALL_WRITE 1` + long scenarios → gigantic ERD; use the WRT whitelist.
-9. **If a CarSim MCP is configured**: `set_dataset/set_table/set_link/write_parsfile` write database files directly — when the read-only convention applies, change parameters via override.par only, never via those tools.
-10. Whitelist principle: for state estimation / online validation, the estimator sees only the virtual-sensor whitelist; Fx/Fy/Fz/Kappa/Alpha are simulator ground truth — evaluation only, never into the estimator.
-
----
-
-## 8. VS C API fallback (step-by-step; not pursued, kept as memo)
-
-The DLL exports the full VS C API (list symbols with `scripts/dump_dll_exports.py`). Documented flow (VS_Commands_API memo):
-
-```c
-t = vs_setdef_and_read(simfile);   // returns start time
-vs_initialize();
-dt = vs_get_tstep();
-while (!stop) { /* write import arrays / read variables */ t = vs_integrate(t); }   // or vs_integrate_io(t,imp,exp)
-vs_terminate_run();  vs_terminate();
-```
-
-| Function | Guessed prototype |
-|---|---|
-| `vs_setdef_and_read` | `double (const char*)` |
-| `vs_get_tstep` / `vs_get_time` | `double ()` |
-| `vs_get_var_id` / `vs_get_var_ptr` | `int (const char*)` / `double* (int)` |
-| `vs_integrate` | `double (double, int*)` (MATLAB docs indicate it returns t and stop) |
-| `vs_integrate_io` | `double (double, double*, double*)` |
-| `vs_statement` | `int (const char*)` (inject a VS Command after read, before initialize) |
-| `vs_error_occurred` / `vs_get_error_message` | `int ()` / `int (char*, int)` |
-
-If you truly need stepping: use a §3.2 simfile as input, a GUI-expanded base, confirm GUI/CSLM is running, and validate return-value semantics on a minimal scenario first. Read variables directly via `vs_get_var_id + vs_get_var_ptr` (no ERD dependency). Load with `ctypes.WinDLL(dll, winmode=0, use_last_error=True)`; stdcall/cdecl share an ABI on 64-bit Windows.
+1. Thin parsfile referencing a vehicle assembly → solver segfault; hand-written expanders → whack-a-mole errors. Use the override pattern only.
+2. `_vs` Python extension (vs.py) → segfault. Use the CLI / scripts.
+3. Closed-loop `LTARG_TABLE` steering override → rows are **appended**, not replaced (phantom target 14.6 m observed). Open-loop `STEER_SW_TABLE` only.
+4. Duplicate table abcissa → parse error; dedupe (`carsim_batch._dedupe`).
+5. Backslash paths on the Git Bash command line → silent wrong-file runs ("results didn't change" — check the CSV timestamp).
+6. GUI-generated simfile DLLFILE may be 32-bit → pin 64-bit.
+7. No license → "Unable to load library"; start `cslm.exe` headless.
+8. `OPT_ALL_WRITE 1` + long runs → GB-scale ERD; use the WRT whitelist.
+9. If a CarSim MCP is present: `set_dataset/set_table/set_link/write_parsfile` write DB files — under the read-only convention use override.par instead.
+10. Truth isolation: Fx/Fy/Fz/Kappa/Alpha are simulator ground truth — evaluation only, never into an estimator.
 
 ---
 
-## 9. CarSim MCP (optional accelerator — not a dependency)
+## 8. Delegation & fallbacks (when NOT to use this workflow)
 
-This skill does not depend on the MCP. If the target machine happens to have a CarSim MCP server configured, it can accelerate exploration: `find_dataset`/`browse_library` (dataset search), `resolve_assembly` (assembly tree), `get_dataset` (structured read), `describe_keyword` (keyword units; run `build_keyword_dictionary` once), `run_solver` (internally the same §3.3 CLI), `read_results` (truncates large outputs — direct CSV reading is better). See references/database-exploration.md §6 for the mapping and the write-tool warning. The run/read main path always goes through the §4 scripts.
-
----
-
-## 10. Database quick reference
-
-| Location | Contents |
-|---|---|
-| `Vehicles\Assembly\` | vehicle assemblies (entry point for picking a car; e.g. the B-Class Hbk "EV AWD/4Mot" four-motor EV) |
-| `Vehicles\Sprung_Mass\` | sprung-mass parameters (M_SU / LX_CG_SU / H_CG / IZZ_SU) |
-| `Powertrain\4wd\` | AWD powertrains (EV twin-motor differentials, battery, motor torque maps) |
-| `Runs\` | Run Controls (thin: camera + vehicle + procedure, three PARSFILE lines; their GUI expansion Results\Run_<uuid>\Run_all.par is the base source) |
-| `Procedures\` | procedures (constant speed / EPA schedule / EV accel-regen templates) |
-| `Control\Speed_t\`, `Control\Driver\`, `Control\Braking\` | speed schedules / driver models / braking datasets |
-| `Roads\3D_Road\`, `Roads\XY_Table\`, `Roads\Friction\` | parametric roads / XY polyline roads / friction |
-| `IO_Channels\I_Channels\` | import channels (e.g. "EV Wheel Motors Command (4WD)" per-wheel torque injection) |
-
-Dataset IDs (UUID suffixes) differ per install/version/clone — **locate by name, never hardcode**.
+- **Base generation & human browsing** → delegate to the VS Browser GUI (once per vehicle; §6).
+- **MATLAB / Simulink co-simulation** → out of scope by design; the override + CSV batch workflow replaces it for identification/verification loops.
+- **Hard real-time stepping** (true closed-loop coupling at solver rate) → only then consider the VS C API via ctypes: see `references/vs-c-api.md` (documented prototypes; unverified end-to-end — prototype only).
+- **CarSim MCP server, if configured** → optional exploration accelerator (`find_dataset`, `resolve_assembly`, `get_dataset`, `describe_keyword`); run/read always via the §4 scripts. See `references/database-exploration.md` §6 for the mapping and the write-tool warning.
 
 ---
 
-## 11. Fixed conventions (general items — do not change)
+## 9. Fixed conventions (do not change)
 
-- Body frame: x forward / y left / z up; yaw rate r > 0 = left turn.
-- Wheel corners FL, FR, RL, RR (= CarSim L1, R1, L2, R2).
+- Body frame x forward / y left / z up; yaw rate r > 0 = left turn.
+- Corners FL, FR, RL, RR (= L1, R1, L2, R2).
 - One directory per scenario (override.par / simfile.sim / run.csv / run_echo.par / run_log.txt, ~10 files); batch runs never overwrite each other.
-- Truth isolation: the estimator sees only whitelisted virtual measurements; tire forces / slips / slip angles and other ground truth go to the evaluator only.
+- Estimator-visible channels = whitelist only; ground-truth channels go to the evaluator.

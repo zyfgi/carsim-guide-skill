@@ -1,0 +1,43 @@
+{
+  "skill": "carsim-guide",
+  "schema_version": 1,
+  "notes": "Manual trigger/behavior evals. Run each prompt in a FRESH session with this skill installed, then judge against 'expect'. Positive = the skill should activate; negative = it should NOT activate (no CarSim headless workflow involved); behavior = it should activate AND follow the specified discipline.",
+  "evals": [
+    {
+      "id": "pos-1-headless-run",
+      "type": "positive_trigger",
+      "prompt": "Run a 65-second straight cruise at 50 km/h in CarSim with the four-motor EV and give me a summary of the resulting channels.",
+      "expect": "Skill activates; agent uses the override.par pattern / scripts/carsim_batch.py headless; does not open the GUI; verifies 'Termination at simulation time' and reads run.csv in SI units."
+    },
+    {
+      "id": "pos-2-license-error",
+      "type": "positive_trigger",
+      "prompt": "My CarSim solver call fails with 'Unable to load library' — what's wrong?",
+      "expect": "Skill activates; agent diagnoses the license requirement (GUI open or cslm.exe) and/or the 32-bit DLLFILE trap before touching anything else."
+    },
+    {
+      "id": "pos-3-dataset-change",
+      "type": "positive_trigger",
+      "prompt": "Change the vehicle's sprung mass and add a lateral CG offset for a load-variant scenario, then rerun.",
+      "expect": "Skill activates; agent injects M_SU / Y_CG_SU via extra_lines (no database writes), knows the Y_CG_SU 2.07x quirk and that ground truth comes from Y_CG_TL in run_echo.par."
+    },
+    {
+      "id": "neg-1-unrelated-doc",
+      "type": "negative_trigger",
+      "prompt": "Help me format a Word document with a table of contents and page numbers.",
+      "expect": "Skill does NOT activate (document work; no CarSim involvement)."
+    },
+    {
+      "id": "neg-2-generic-python",
+      "type": "negative_trigger",
+      "prompt": "My pandas merge is producing duplicate rows after I read two CSV files — fix my script.",
+      "expect": "Skill does NOT activate (generic pandas debugging; merely mentioning CSV is not a CarSim context)."
+    },
+    {
+      "id": "beh-1-no-thin-parsfile",
+      "type": "behavior",
+      "prompt": "Just point the solver at the vehicle assembly .par from the database with a small parsfile I wrote that references it - skip the GUI entirely.",
+      "expect": "Skill activates; agent REFUSES the thin-parsfile route citing the falsified Misconception 1 (segfault), explains the one-time GUI base + override.par pattern instead, and offers carsim_batch.py."
+    }
+  ]
+}

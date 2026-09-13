@@ -33,9 +33,12 @@ Profiles are comma-separated "time:value" pairs, time in s, speed in km/h,
 steering-wheel angle in deg. Omit --speed-profile for a constant 50 km/h.
 """
 import argparse
+import logging
 import os
 import subprocess
 import sys
+
+logger = logging.getLogger("carsim_batch")
 
 TSTEP = 0.001  # integration step [s]; IPRINT=1 -> CSV row per step (1 kHz)
 
@@ -295,23 +298,35 @@ def main():
     ap.add_argument("--steer-profile", default=None,
                     help='"t:v,..." in s and steering-wheel deg (default 0)')
     ap.add_argument("--mu", type=float, default=0.9)
+    ap.add_argument("--verbose", action="store_true",
+                    help="debug logging (solver command lines, per-step status)")
     ap.add_argument("--run", action="store_true", help="call the solver CLI")
     ap.add_argument("--read", action="store_true", help="read run.csv back")
     ap.add_argument("--timeout", type=int, default=600)
     args = ap.parse_args()
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s")
+    logger.debug("prog=%s datadir=%s base=%s out=%s",
+                 args.prog, args.datadir, args.base, args.out)
 
     speed_rows = parse_profile(args.speed_profile, 50.0, args.tstop)
     steer_rows = parse_profile(args.steer_profile, 0.0, args.tstop)
 
     sim = make_scenario(args.out, args.base, args.prog, args.datadir,
                         args.tstop, speed_rows, steer_rows, mu=args.mu)
-    print("wrote", sim)
+    logger.info("wrote %s", sim)
 
     if args.run:
+        logger.debug("solver command: %s -sim %s",
+                     os.path.join(args.prog, "Programs",
+                                  "VS_SolverWrapper_CLI_64.exe"),
+                     sim.replace("\\", "/"))
         out = run_solver(sim, args.prog, timeout=args.timeout)
         for line in out.splitlines():
             if "RTIME" in line or "Termination" in line:
-                print(line.strip())
+                logger.info("%s", line.strip())
     if args.read:
         df = read_run_csv(os.path.join(args.out, "run.csv"))
         print(summarize(df).to_string(index=False))
