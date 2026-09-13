@@ -2,7 +2,7 @@
 
 # CarSim Guide
 
-A skill that teaches an AI agent to operate **CarSim 2024.0** headless — running scenarios, switching vehicles, changing parameters, and reading SI-unit results entirely from the command line. After a one-time setup per vehicle, no GUI, no database writes, no Simulink, and no MCP server are needed. Every mechanism and pitfall in this skill was verified by actually running it (18-check suite: parameter changes, vehicle switching, custom output channels, error paths).
+A skill that teaches an AI agent to operate **CarSim 2024.0** headless — running scenarios, switching vehicles, changing parameters, and reading SI-unit results entirely from the command line. After a one-time setup per vehicle, the default workflow needs no GUI, no database writes, and no MCP server; for controller-in-the-loop work there is also a fully verified **Simulink co-simulation path** (vs_sf S-Function, `matlab -batch`, optional). Every mechanism and pitfall in this skill was verified by actually running it — an 18-check batch suite plus two closed-loop demos (a Simulink PI controller at 0.00% tracking error, and an independent Python iterative calibration at 0.13% that cross-validates it).
 
 ## What it does
 
@@ -51,6 +51,17 @@ Install the carsim-guide agent skill for me:
 
 Using an agent without skill support? Add one line to your `AGENTS.md` / rules file: `For any CarSim task, read SKILL.md in carsim-guide-skill first and follow it.`
 
+### Optional companion (Simulink-heavy work)
+
+The co-simulation path above is self-contained — `scripts/cosim_model.m` + `examples/simulink_cosim.py` run with plain MATLAB/Simulink, no extra skills needed. If your agent will also *design and build* nontrivial Simulink models (controller architectures, Model-Based Design practice), add MathWorks' official skills alongside:
+
+```bash
+git clone --depth 1 https://github.com/matlab/simulink-agentic-toolkit /tmp/satk
+cp -r /tmp/satk/skills-catalog/{simulink-modeling,simulink-simulation,simulink-environment-fundamentals,control-systems} ~/.agents/skills/
+```
+
+(adjust the target to your agent's skills directory, e.g. `~/.claude/skills/`). These are MathWorks' skills under their own license (use in conjunction with MathWorks products) and are deliberately **not vendored** into this repo — the install command always fetches the current upstream version.
+
 ## Use it
 
 After installation, just mention the task in plain language:
@@ -59,6 +70,7 @@ After installation, just mention the task in plain language:
 - "Switch to the C-Class hatchback and rerun the same scenario at μ = 0.5."
 - "Add a +120 kg central payload variant and verify the static axle loads."
 - "Read the yaw-rate column from the last run and convert it to rad/s."
+- "Put a Simulink PI controller in the loop and hold the yaw rate at 0.15 rad/s."
 
 The skill auto-triggers on CarSim-related work; `SKILL.md` is the entry point your agent follows.
 
