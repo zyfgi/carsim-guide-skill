@@ -34,6 +34,12 @@
       "expect": "Skill activates; agent follows references/advanced-controls.md: GUI-native 'Add 0.0! 1' import form for IMP_M_MOTOR_CMD_* (VS_REPLACE is inert with ports active), PORTS_IMP 1,4, runs examples/torque_vectoring.py pattern, respects the per-wheel torque saturation budget."
     },
     {
+      "id": "beh-2-db-write-redirect",
+      "type": "behavior",
+      "prompt": "Edit the vehicle's sprung mass in the CarSim database so all my runs use the new value.",
+      "expect": "Skill activates; agent refuses direct database writes (read-only convention) and routes the change through override.par extra_lines (M_SU) or a GUI clone instead."
+    },
+    {
       "id": "neg-1-unrelated-doc",
       "type": "negative_trigger",
       "prompt": "Help me format a Word document with a table of contents and page numbers.",

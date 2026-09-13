@@ -1,0 +1,5 @@
+# Runtime dependency for scripts/ and examples/ (Python 3.8+)
+pandas>=1.5
+
+# Development / CI (not needed to just run the skill)
+#   pip install pytest ruff

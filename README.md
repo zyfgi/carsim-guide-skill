@@ -78,11 +78,22 @@ The skill auto-triggers on CarSim-related work; `SKILL.md` is the entry point yo
 ## Requirements
 
 - CarSim 2024.0 (Windows x64) with a valid license — GUI open or `cslm.exe` running
-- Python 3.x with pandas (the scripts also run standalone, e.g. in CI)
+- Python 3.8+ with pandas — `pip install -r requirements.txt` (the scripts also run standalone, e.g. in CI)
 
 **Verified environments**: CarSim 2024.0, Windows 10/11 x64, Python 3.14 + pandas 3.0; MATLAB **R2025b** + Simulink 25.2 for the co-simulation path (works despite being newer than CarSim 2024.0's officially tested range). Any reasonably recent Python 3 + pandas should work.
 
-**Other CarSim versions**: the workflow is version-agnostic in principle — adjust the `CarSim2024.0_Prog/_Data` directory names and `PRODUCT_VER` in the simfile, then re-run the quick-start acceptance check. The pitfall list was verified against 2024.0 only; treat other versions as unverified.
+**Other CarSim versions**: the workflow is version-agnostic in principle — adjust the `CarSim2024.0_Prog/_Data` directory names and `PRODUCT_VER` in the simfile, then re-run the quick-start acceptance check. The core mechanics (last-write-wins overriding, GUI-only dataset decorations, the expanded-base pattern) are long-standing solver semantics, but the pitfall list was verified against 2024.0 only — treat other versions as unverified.
+
+### How this differs from a CarSim MCP server
+
+| | carsim-guide-skill | A CarSim MCP server |
+|---|---|---|
+| Protocol | Agent Skills standard (`SKILL.md`) | MCP server + MCP client |
+| Dependencies | plain CLI + Python (pandas) | MCP host support + server config |
+| Database access | read-only (override.par instead) | direct dataset read/write tools |
+| Best for | batch runs, sweeps, scripted pipelines | interactive dataset exploration/editing |
+
+The two coexist fine: the skill treats a configured MCP server as an optional exploration accelerator and routes all running/reading through its own scripts (SKILL.md §8).
 
 ## Repository layout
 

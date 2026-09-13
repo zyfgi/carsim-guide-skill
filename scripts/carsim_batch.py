@@ -99,6 +99,14 @@ def si_scale(col):
     return 1.0  # forces N, torques N.m, kappa -, motor rpm kept as-is, etc.
 
 
+def _known_unit(col):
+    """True if a column's identity is covered by the verified unit contract
+    (SI forces/torques, dimensionless kappa, motor rpm, generic time/id)."""
+    c = col.lower()
+    return (c.startswith(("fx_", "fy_", "fz_", "my_", "kappa_", "av_mt_", "time"))
+            or c in ("station", "xo", "yo", "yaw", "zo"))
+
+
 # ---------------------------------------------------------------------------
 # 1) generators
 # ---------------------------------------------------------------------------
@@ -251,6 +259,10 @@ def read_run_csv(path, columns=None):
     if columns is not None:
         # respect the caller's requested order (pandas returns file order)
         df = df[[c for c in columns if c in df.columns]]
+    unknown = [c for c in df.columns if si_scale(c) == 1.0 and not _known_unit(c)]
+    if unknown:
+        logger.warning("no SI conversion rule for columns %s - returned unscaled; "
+                       "verify units before use", unknown)
     drop = [c for c in UNRELIABLE_COLS if c in df.columns]
     if drop:
         df = df.drop(columns=drop)
