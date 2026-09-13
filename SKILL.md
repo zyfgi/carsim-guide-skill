@@ -1,6 +1,6 @@
 ---
 name: carsim-guide
-description: CarSim 2024.0 (VS Solver) runtime mechanics and headless scripting guide. Covers the override.par pattern (GUI-expanded base + keyword overrides), a self-contained simfile template, CLI batch runs, Python interface scripts (generate / run / read CSV), output channels and unit conversion, database exploration, Simulink co-simulation via the vs_sf S-Function, and a field-tested pitfall list. Self-contained - no CarSim MCP required. Use when dealing with CarSim headless runs, VS solver CLI, simfile.sim / Run_all.par / override.par workflows, ERD/CSV result reading, vehicle / procedure / road dataset changes, or Simulink+CarSim co-simulation - even if the user never mentions the runtime mechanics.
+description: CarSim 2024.0 (VS Solver) runtime mechanics and headless scripting guide. Covers the override.par pattern (GUI-expanded base + keyword overrides), a self-contained simfile template, CLI batch runs, Python interface scripts (generate / run / read CSV), output channels and unit conversion, database exploration, open-loop driver controls, per-wheel torque imports (torque vectoring / TCS), Simulink co-simulation via the vs_sf S-Function, and a field-tested pitfall list. Self-contained - no CarSim MCP required. Use when dealing with CarSim headless runs, VS solver CLI, simfile.sim / Run_all.par / override.par workflows, ERD/CSV result reading, vehicle / procedure / road dataset changes, Simulink+CarSim co-simulation, or FSAE-style event testing (acceleration, braking, torque vectoring) - even if the user never mentions the runtime mechanics.
 ---
 
 # CarSim 2024.0 Runtime Mechanics & Operation Guide (agent reference, field-verified)
@@ -10,12 +10,15 @@ Updated 2026-09-13. Everything marked "verified" was validated by actually runni
 **Companion files (read on demand, not upfront):**
 - `scripts/carsim_batch.py` — full workflow: generate override.par/simfile, run headless, read CSV (CLI + library)
 - `scripts/cosim_model.m` — Simulink co-sim model builder (PI demo, run via matlab -batch)
+- `scripts/tv_cosim.m` — torque-vectoring co-sim model builder (4 torque imports, zero steer)
 - `scripts/dump_dll_exports.py` — zero-dependency DLL export-symbol enumerator
 - `examples/param_sweep.py` — runnable batch parameter-sweep example
 - `examples/simulink_cosim.py` — runnable Simulink+CarSim closed-loop demo (end to end)
+- `examples/torque_vectoring.py` — runnable torque-vectoring demo (verified 4.3% yaw tracking)
 - `references/python-interface.md` — before modifying/extending the script: keyword rationale, simfile fields, unit contract, failure triage
 - `references/database-exploration.md` — finding vehicles / assembly trees / keyword units (grep recipes, no MCP)
 - `references/dataset-syntax.md` — .par dataset syntax templates
+- `references/advanced-controls.md` — open-loop throttle/brake, per-wheel torque imports (torque vectoring/TCS), table replace-vs-append semantics, FSAE event notes
 - `references/simulink-cosim.md` — Simulink co-simulation via vs_sf: verified recipe + pitfalls (PORTS syntax, import activation, R2025b)
 - `references/vs-c-api.md` — VS C API (ctypes) stepping fallback, only if hard-real-time coupling is required
 - `evals/evals.json` — trigger/behavior tests for this skill
@@ -117,6 +120,8 @@ Recommended WRT set (`OUTPUTS_CORE/EXTRA` in the script): cg states (`Vx Vy Ax A
 Units → SI (built into `read_run_csv`): Vx/Vy km/h÷3.6; Ax/Ay **g**×9.81; AVz/angles deg×π/180; AVy_* **rpm**×2π/60; forces/torques already SI. Signs (verified): left turn → AVz>0; My_Dr + = drive, − = regen; My_Bk ≤ 0 forward. Corners: L1=FL, R1=FR, L2=RL, R2=RR.
 
 **Parameter overrides** (§5.3, inject via `extra_lines`): `M_SU <kg>`, `IZZ_SU <kg·m²>`, `LX_CG_SU/H_CG_SU/Y_CG_SU <mm>`, `RRE/R0(axle,side) <mm>`. **Y_CG_SU quirk (A/B/C/D verified)**: static left-right load split is exactly linear in the value but ≈**2.07×** the naive rigid prediction; ground-truth lateral CG = the `Y_CG_TL` (CALC) line in `run_echo.par` — never invert the Fz split naively.
+
+**Advanced controls**: open-loop throttle/brake tables (`OPT_SC 0` — standstill start!), per-wheel torque imports for torque vectoring/TCS (GUI-native `Add 0.0! 1` form — `VS_REPLACE` is inert with ports active), and the replace-vs-append table semantics (control/env tables replace; `LTARG_TABLE` appends) — all field-verified in **`references/advanced-controls.md`**.
 
 ---
 
