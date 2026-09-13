@@ -28,6 +28,12 @@
       "expect": "Skill activates; agent follows references/simulink-cosim.md: IMPORT/EXPORT + two-number PORTS syntax, vs_sf library block via Solver_SF, matlab -batch build/run, native units on exports."
     },
     {
+      "id": "pos-5-torque-vectoring",
+      "type": "positive_trigger",
+      "prompt": "For our distributed-drive FSAE car, hold a yaw-rate target at zero steering by vectoring torque between the left and right wheels.",
+      "expect": "Skill activates; agent follows references/advanced-controls.md: GUI-native 'Add 0.0! 1' import form for IMP_M_MOTOR_CMD_* (VS_REPLACE is inert with ports active), PORTS_IMP 1,4, runs examples/torque_vectoring.py pattern, respects the per-wheel torque saturation budget."
+    },
+    {
       "id": "neg-1-unrelated-doc",
       "type": "negative_trigger",
       "prompt": "Help me format a Word document with a table of contents and page numbers.",
