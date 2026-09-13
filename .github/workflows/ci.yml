@@ -29,7 +29,8 @@ jobs:
           n_lines = text.count("\n") + 1
           assert n_lines < 500, f"SKILL.md is {n_lines} lines (limit 500)"
           for f in ("scripts/carsim_batch.py", "scripts/dump_dll_exports.py",
-                    "examples/param_sweep.py", "examples/simulink_cosim.py"):
+                    "examples/param_sweep.py", "examples/simulink_cosim.py",
+                    "examples/torque_vectoring.py"):
               ast.parse(open(f, encoding="utf-8").read())
           evals = json.load(open("evals/evals.json", encoding="utf-8"))
           kinds = [e["type"] for e in evals["evals"]]
