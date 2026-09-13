@@ -1,6 +1,6 @@
 ---
 name: carsim-guide
-description: CarSim 2024.0 (VS Solver) runtime mechanics and headless scripting guide. Covers the override.par pattern (GUI-expanded base + keyword overrides), a self-contained simfile template, CLI batch runs, Python interface scripts (generate / run / read CSV), output channels and unit conversion, database exploration, and a field-tested pitfall list. Self-contained - no CarSim MCP required. Use when dealing with CarSim headless runs, VS solver CLI, simfile.sim / Run_all.par / override.par workflows, ERD/CSV result reading, or vehicle / procedure / road dataset changes - even if the user never mentions the runtime mechanics.
+description: CarSim 2024.0 (VS Solver) runtime mechanics and headless scripting guide. Covers the override.par pattern (GUI-expanded base + keyword overrides), a self-contained simfile template, CLI batch runs, Python interface scripts (generate / run / read CSV), output channels and unit conversion, database exploration, Simulink co-simulation via the vs_sf S-Function, and a field-tested pitfall list. Self-contained - no CarSim MCP required. Use when dealing with CarSim headless runs, VS solver CLI, simfile.sim / Run_all.par / override.par workflows, ERD/CSV result reading, vehicle / procedure / road dataset changes, or Simulink+CarSim co-simulation - even if the user never mentions the runtime mechanics.
 ---
 
 # CarSim 2024.0 Runtime Mechanics & Operation Guide (agent reference, field-verified)
@@ -9,11 +9,14 @@ Updated 2026-09-13. Everything marked "verified" was validated by actually runni
 
 **Companion files (read on demand, not upfront):**
 - `scripts/carsim_batch.py` — full workflow: generate override.par/simfile, run headless, read CSV (CLI + library)
+- `scripts/cosim_model.m` — Simulink co-sim model builder (PI demo, run via matlab -batch)
 - `scripts/dump_dll_exports.py` — zero-dependency DLL export-symbol enumerator
 - `examples/param_sweep.py` — runnable batch parameter-sweep example
+- `examples/simulink_cosim.py` — runnable Simulink+CarSim closed-loop demo (end to end)
 - `references/python-interface.md` — before modifying/extending the script: keyword rationale, simfile fields, unit contract, failure triage
 - `references/database-exploration.md` — finding vehicles / assembly trees / keyword units (grep recipes, no MCP)
 - `references/dataset-syntax.md` — .par dataset syntax templates
+- `references/simulink-cosim.md` — Simulink co-simulation via vs_sf: verified recipe + pitfalls (PORTS syntax, import activation, R2025b)
 - `references/vs-c-api.md` — VS C API (ctypes) stepping fallback, only if hard-real-time coupling is required
 - `evals/evals.json` — trigger/behavior tests for this skill
 
@@ -145,7 +148,7 @@ New vehicle: find it → clone a Run Control in the GUI → Run Math Model → n
 ## 8. Delegation & fallbacks (when NOT to use this workflow)
 
 - **Base generation & human browsing** → delegate to the VS Browser GUI (once per vehicle; §6).
-- **MATLAB / Simulink co-simulation** → out of scope by design; the override + CSV batch workflow replaces it for identification/verification loops.
+- **MATLAB / Simulink co-simulation** → supported and field-verified when the controller lives in Simulink: `references/simulink-cosim.md` (PI yaw-tracking demo, 0.00% error; programmatic build via `scripts/cosim_model.m`, runnable driver `examples/simulink_cosim.py`). For identification/data loops, stay with the CSV batch — 16×+ faster and MATLAB-free.
 - **Hard real-time stepping** (true closed-loop coupling at solver rate) → only then consider the VS C API via ctypes: see `references/vs-c-api.md` (documented prototypes; unverified end-to-end — prototype only).
 - **CarSim MCP server, if configured** → optional exploration accelerator (`find_dataset`, `resolve_assembly`, `get_dataset`, `describe_keyword`); run/read always via the §4 scripts. See `references/database-exploration.md` §6 for the mapping and the write-tool warning.
 

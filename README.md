@@ -13,6 +13,7 @@ A skill that teaches an AI agent to operate **CarSim 2024.0** headless — runni
 | Add payloads (mass, CG, inertia, tire radius) | `extra_lines=["M_SU 1254.0", "Y_CG_SU 150.0", …]` |
 | Switch to another vehicle | one-time GUI base expansion, then override everything else |
 | Read results | `run.csv` → pandas DataFrame in **SI units** (built-in, field-verified contract: km/h, g, rpm, deg/s) |
+| Close the loop in Simulink | co-simulation via the `vs_sf` S-Function — `examples/simulink_cosim.py` + `scripts/cosim_model.m` (PI yaw-tracking demo, verified end to end) |
 | Explore the vehicle database | grep recipes in `references/` — no tooling required |
 | Understand dataset files | `.par` syntax templates in `references/` |
 
@@ -66,7 +67,7 @@ The skill auto-triggers on CarSim-related work; `SKILL.md` is the entry point yo
 - CarSim 2024.0 (Windows x64) with a valid license — GUI open or `cslm.exe` running
 - Python 3.x with pandas (the scripts also run standalone, e.g. in CI)
 
-**Verified environments**: CarSim 2024.0, Windows 10/11 x64, Python 3.14 + pandas 3.0 — any reasonably recent Python 3 + pandas should work.
+**Verified environments**: CarSim 2024.0, Windows 10/11 x64, Python 3.14 + pandas 3.0; MATLAB **R2025b** + Simulink 25.2 for the co-simulation path (works despite being newer than CarSim 2024.0's officially tested range). Any reasonably recent Python 3 + pandas should work.
 
 **Other CarSim versions**: the workflow is version-agnostic in principle — adjust the `CarSim2024.0_Prog/_Data` directory names and `PRODUCT_VER` in the simfile, then re-run the quick-start acceptance check. The pitfall list was verified against 2024.0 only; treat other versions as unverified.
 
@@ -75,12 +76,15 @@ The skill auto-triggers on CarSim-related work; `SKILL.md` is the entry point yo
 ```
 SKILL.md                           # entry point: mechanics, override pattern, channels & units, pitfalls
 scripts/carsim_batch.py            # generate / run / read workflow (CLI + library API)
+scripts/cosim_model.m              # Simulink co-sim model builder (matlab -batch)
 scripts/dump_dll_exports.py        # zero-dependency DLL export-symbol enumerator
 examples/param_sweep.py            # runnable batch parameter-sweep example
-evals/evals.json                   # trigger/behavior tests (3 positive, 2 negative, 1 behavior)
+examples/simulink_cosim.py         # runnable Simulink+CarSim closed-loop demo
+evals/evals.json                   # trigger/behavior tests (4 positive, 2 negative, 1 behavior)
 references/python-interface.md     # script walkthrough + unit conversion contract
 references/database-exploration.md # grep-based database exploration (no MCP)
 references/dataset-syntax.md       # .par dataset syntax templates
+references/simulink-cosim.md       # Simulink co-simulation: verified recipe + pitfalls
 references/vs-c-api.md             # VS C API stepping fallback (prototype)
 .github/workflows/ci.yml           # frontmatter / syntax / size checks on push
 ```

@@ -22,6 +22,12 @@
       "expect": "Skill activates; agent injects M_SU / Y_CG_SU via extra_lines (no database writes), knows the Y_CG_SU 2.07x quirk and that ground truth comes from Y_CG_TL in run_echo.par."
     },
     {
+      "id": "pos-4-simulink-cosim",
+      "type": "positive_trigger",
+      "prompt": "I want a Simulink controller driving CarSim - steer the vehicle to hold a yaw-rate target and log the states.",
+      "expect": "Skill activates; agent follows references/simulink-cosim.md: IMPORT/EXPORT + two-number PORTS syntax, vs_sf library block via Solver_SF, matlab -batch build/run, native units on exports."
+    },
+    {
       "id": "neg-1-unrelated-doc",
       "type": "negative_trigger",
       "prompt": "Help me format a Word document with a table of contents and page numbers.",
