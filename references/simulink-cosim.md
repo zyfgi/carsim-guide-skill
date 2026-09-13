@@ -61,5 +61,12 @@ PI yaw-rate target 0.15 rad/s at 50 km/h cruise: steady error 0.00%, 95% rise 0.
 
 ## 5. Related tooling
 
-- **Simulink Agentic Toolkit** (github.com/matlab/simulink-agentic-toolkit): official skills giving agents Model-Based-Design knowledge for building/editing/testing Simulink models — pairs well with this skill (we generate the CarSim side, it builds the controller side).
+- **Simulink Agentic Toolkit** (github.com/matlab/simulink-agentic-toolkit): official MathWorks skills giving agents Model-Based-Design knowledge for building/editing/testing Simulink models — pairs well with this skill (we generate the CarSim side, it builds the controller side). NOT required for the recipe above (plain `matlab -batch` suffices); install it for nontrivial model-design work:
+
+  ```bash
+  git clone --depth 1 https://github.com/matlab/simulink-agentic-toolkit /tmp/satk
+  cp -r /tmp/satk/skills-catalog/{simulink-modeling,simulink-simulation,simulink-environment-fundamentals,control-systems} ~/.agents/skills/
+  ```
+
+  (adjust the target to your agent's skills directory; MathWorks license applies — use in conjunction with MathWorks products.)
 - Component-level S-Functions (`vs_dyn`, `vs_kin`, `vs_ctl`, `vs_state` in the same folder) expose sub-models separately; UDP blocks exist for distributed setups.
