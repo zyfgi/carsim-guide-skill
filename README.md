@@ -14,6 +14,7 @@ A skill that teaches an AI agent to operate **CarSim 2024.0** headless — runni
 | Switch to another vehicle | one-time GUI base expansion, then override everything else |
 | Read results | `run.csv` → pandas DataFrame in **SI units** (built-in, field-verified contract: km/h, g, rpm, deg/s) |
 | Close the loop in Simulink | co-simulation via the `vs_sf` S-Function — `examples/simulink_cosim.py` + `scripts/cosim_model.m` (PI yaw-tracking demo, verified end to end) |
+| Torque vectoring / TCS / event tests | per-wheel torque imports (`examples/torque_vectoring.py` — zero-steer yaw verified), open-loop throttle/brake tables, FSAE acceleration/braking patterns |
 | Explore the vehicle database | grep recipes in `references/` — no tooling required |
 | Understand dataset files | `.par` syntax templates in `references/` |
 
@@ -89,13 +90,16 @@ The skill auto-triggers on CarSim-related work; `SKILL.md` is the entry point yo
 SKILL.md                           # entry point: mechanics, override pattern, channels & units, pitfalls
 scripts/carsim_batch.py            # generate / run / read workflow (CLI + library API)
 scripts/cosim_model.m              # Simulink co-sim model builder (matlab -batch)
+scripts/tv_cosim.m                 # torque-vectoring co-sim model builder
 scripts/dump_dll_exports.py        # zero-dependency DLL export-symbol enumerator
 examples/param_sweep.py            # runnable batch parameter-sweep example
 examples/simulink_cosim.py         # runnable Simulink+CarSim closed-loop demo
-evals/evals.json                   # trigger/behavior tests (4 positive, 2 negative, 1 behavior)
+examples/torque_vectoring.py       # runnable torque-vectoring demo (zero-steer yaw)
+evals/evals.json                   # trigger/behavior tests (5 positive, 2 negative, 1 behavior)
 references/python-interface.md     # script walkthrough + unit conversion contract
 references/database-exploration.md # grep-based database exploration (no MCP)
 references/dataset-syntax.md       # .par dataset syntax templates
+references/advanced-controls.md    # open-loop controls, torque imports, table semantics, FSAE notes
 references/simulink-cosim.md       # Simulink co-simulation: verified recipe + pitfalls
 references/vs-c-api.md             # VS C API stepping fallback (prototype)
 .github/workflows/ci.yml           # frontmatter / syntax / size checks on push
