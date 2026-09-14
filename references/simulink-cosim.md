@@ -20,7 +20,7 @@ Simulink model (your controller)
 
 ## 2. Verified recipe (programmatic, no GUI)
 
-1. **Generate the co-sim inputs with the normal override workflow**, adding import/export declarations via `extra_lines` (see `examples/simulink_cosim.py`):
+1. **Generate the co-sim inputs with the normal override workflow**, adding import/export declarations via `unsafe_extra_lines` (see `examples/simulink_cosim.py`):
 
    ```
    IMPORT IMP_STEER_SW REPLACE      ! steering wheel angle [deg] from Simulink

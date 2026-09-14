@@ -71,7 +71,7 @@ def main():
                                outputs=cb.OUTPUTS_CORE + cb.OUTPUTS_EXTRA)
         logger.info("running %s ...", tag)
         cb.run_solver(sim, args.prog, timeout=args.timeout)
-        df = cb.read_run_csv(os.path.join(d, "run.csv"), allow_truth=True,
+        df = cb.read_run_csv(os.path.join(d, "run.csv"),
                              columns=["Time", "Vx", "Ax", "Ay", "AVz",
                                       "Kappa_L1", "Kappa_R1",
                                       "Kappa_L2", "Kappa_R2"])

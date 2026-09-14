@@ -23,7 +23,7 @@ ENDTABLE
 
 - With `OPT_SC 0` the vehicle starts **from standstill** — the speed table's first row no longer sets the initial speed. To test braking from speed, accelerate first in the same run (throttle table), then apply the brake table.
 - `PBK_CON` is **MPa at the master cylinder**; ~2 MPa is gentle, this vehicle saturates by ~10 MPa.
-- Inject via `extra_lines` AFTER the generated speed lines — last-write-wins flips `OPT_SC 1` to `0` cleanly.
+- Inject via `unsafe_extra_lines` AFTER the generated speed lines — last-write-wins flips `OPT_SC 1` to `0` cleanly.
 
 ## 2. Per-wheel torque import (torque vectoring / TCS)
 
@@ -56,7 +56,7 @@ Notes:
 
 - A **constant-valued** speed table is auto-normalized to `SPEED_TARGET_CONSTANT` in the echo — the table "disappearing" from the echo is normal, not a failure.
 - Echo keywords may carry an index suffix (`MU_ROAD_CARPET(1)`) — grep accordingly.
-- **Property/geometry tables inside subsystem datasets (spring/damper/kinematics/aero maps) are NOT verified via override** — the append behavior documented for LTARG makes them risky. For design-space sweeps over geometry: edit the dataset in the GUI (or MCP `set_table` on a clone) and re-expand the base, once per design point. Scalars (`M_SU`, gear ratios, etc.) remain clean `extra_lines` territory.
+- **Property/geometry tables inside subsystem datasets (spring/damper/kinematics/aero maps) are NOT verified via override** — the append behavior documented for LTARG makes them risky. For design-space sweeps over geometry: edit the dataset in the GUI (or MCP `set_table` on a clone) and re-expand the base, once per design point. Scalars (`M_SU`, gear ratios, etc.) remain clean `unsafe_extra_lines` territory.
 
 ## 4. FSAE-oriented notes
 

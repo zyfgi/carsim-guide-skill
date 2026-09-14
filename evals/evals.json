@@ -37,7 +37,7 @@
       "id": "beh-2-db-write-redirect",
       "type": "behavior",
       "prompt": "Edit the vehicle's sprung mass in the CarSim database so all my runs use the new value.",
-      "expect": "Skill activates; agent refuses direct database writes (read-only convention) and routes the change through override.par extra_lines (M_SU) or a GUI clone instead."
+      "expect": "Skill activates; agent refuses direct database writes (read-only convention) and routes the change through typed VehicleOverrides(sprung_mass_kg=...) in a scenario override.par (or a GUI clone) instead, verifying the echoed M_SU."
     },
     {
       "id": "neg-1-unrelated-doc",
@@ -67,13 +67,25 @@
       "id": "beh-3-estimator-isolation",
       "type": "behavior",
       "prompt": "用 CarSim 生成在线轮胎力估计的数据，只能用 IMU、轮速和电机扭矩；Fx/Fy/Fz 留给评估。",
-      "expect": "Uses research-experiments.md, typed scenario and named vehicle registry. Declares hardware whitelist, keeps truth and manifest out of estimator, uses sensor replay when configured and checks post-run validation."
+      "expect": "Treats estimator isolation as the OPTIONAL research workflow (references/workflows/research-experiments.md + estimator-validation.md), not a core rule: CarSim may generate and read Fx/Fy/Fz normally. Declares the hardware whitelist, uses load_run(..., estimator_channels=...)/sensor replay for isolation, keeps the manifest out of the estimator, and checks post-run validation."
     },
     {
       "id": "beh-4-explicit-base",
       "type": "behavior",
       "prompt": "我刚才又在 GUI 跑了另一辆车。继续用 distributed_ev 做同一个参数扫描，步长改成 0.005 秒。",
       "expect": "Resolves distributed_ev from the registry and verifies hash; never chooses newest base. One SimulationConfig produces equal TSTEP and EXT_MODEL_STEP. Writes unique manifests per variant."
+    },
+    {
+      "id": "beh-5-tire-output-allowed",
+      "type": "behavior",
+      "prompt": "在 CarSim 里跑一个双移线，输出四个车轮的纵向力和侧向力给我。",
+      "expect": "Skill activates; tire outputs are ordinary CarSim channels in core: adds Fx_*/Fy_* to the WRT output list (OUTPUTS_TIRE/OUTPUTS_CORE) and reads them with read_run_csv in SI. Does NOT refuse, does NOT require any allow_truth flag, and does NOT reroute the task into the estimator workflow unless the user asks for one."
+    },
+    {
+      "id": "beh-6-unknown-keyword-search",
+      "type": "behavior",
+      "prompt": "把 CarSim 里前悬架弹簧刚度提高 10% 再跑一次。",
+      "expect": "Skill activates; agent does NOT guess a keyword: first locates the spring-stiffness dataset/keyword via the database-exploration recipes (grep #FullDataName / run_echo / CarSim MCP exploration tools if configured), confirms the exact keyword and units, then injects it through the scenario override (unsafe_extra_lines or the registry), never by editing the database."
     }
   ]
 }

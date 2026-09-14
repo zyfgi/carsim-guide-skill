@@ -55,7 +55,7 @@ def test_simfile_pins_64bit_and_ports():
 # ---------------------------------------------------------------- unit scale
 @pytest.mark.parametrize("col,factor", [
     ("Time", 1.0), ("Vx", 0.2777778), ("Vy", 0.2777778),
-    ("Ax", 9.81), ("Ay", 9.81), ("AVz", 0.0174533),
+    ("Ax", 9.80665), ("Ay", 9.80665), ("AVz", 0.0174533),
     ("Roll", 0.0174533), ("Steer_L1", 0.0174533), ("Alpha_R2", 0.0174533),
     ("AVy_L1", 0.1047198),           # wheel speed: rpm -> rad/s
     ("Fx_L1", 1.0), ("My_Bk_R2", 1.0), ("Kappa_L1", 1.0),  # already SI / -1
@@ -115,9 +115,9 @@ def test_resolve_paths_missing_raises_with_setup_hint(tmp_path, monkeypatch):
 def synthetic_csv(tmp_path):
     p = tmp_path / "run.csv"
     p.write_text(
-        "Time,Vx,Ax,AVz,Fz_L1,Lat_Veh,AV_Mt_D1_L\n"
-        "0.0,50.0,0.10,5.0,3200.0,1.0,60.0\n"
-        "1.0,50.0,0.10,5.0,3200.0,1.0,60.0\n", encoding="utf-8")
+        "Time,Vx,Ax,AVz,Fx_L1,Fz_L1,Lat_Veh,AV_Mt_D1_L\n"
+        "0.0,50.0,0.10,5.0,500.0,3200.0,1.0,60.0\n"
+        "1.0,50.0,0.10,5.0,500.0,3200.0,1.0,60.0\n", encoding="utf-8")
     return str(p)
 
 
@@ -126,13 +126,39 @@ def test_read_run_csv_converts_to_si(synthetic_csv):
     assert df.Vx.iloc[0] == pytest.approx(50 * 0.2777778, rel=1e-3)
     assert df.Ax.iloc[0] == pytest.approx(0.981, rel=1e-3)
     assert df.AVz.iloc[0] == pytest.approx(5 * 0.0174533, rel=1e-3)
-    assert "Fz_L1" not in df  # default reader cannot leak truth
-    assert cb.read_run_csv(synthetic_csv, allow_truth=True).Fz_L1.iloc[0] == 3200
+    # core reader returns tire outputs like any other channel (no flags)
+    assert df.Fz_L1.iloc[0] == 3200
+
+
+def test_read_tire_force_allowed(synthetic_csv):
+    """Regression: core must never reject tire outputs; isolation is a
+    workflow-layer concern (result_contract.load_run / estimator_view)."""
+    df = cb.read_run_csv(synthetic_csv, columns=["Time", "Fx_L1", "Fz_L1"])
+    assert list(df.columns) == ["Time", "Fx_L1", "Fz_L1"]
+    assert df.Fx_L1.iloc[0] == 500.0
+
+
+def test_read_run_csv_native_units(synthetic_csv):
+    raw = cb.read_run_csv(synthetic_csv, units="native")
+    si = cb.read_run_csv(synthetic_csv)
+    assert raw.Vx.iloc[0] == 50.0                       # km/h untouched
+    assert raw.AV_Mt_D1_L.iloc[0] == 60.0               # rpm untouched
+    assert si.AV_Mt_D1_L.iloc[0] == pytest.approx(2 * 3.14159265, rel=1e-3)
+    with pytest.raises(ValueError, match="units"):
+        cb.read_run_csv(synthetic_csv, units="kmh")
+
+
+def test_allow_truth_is_deprecated_noop(synthetic_csv):
+    with pytest.warns(DeprecationWarning, match="allow_truth"):
+        df = cb.read_run_csv(synthetic_csv, allow_truth=True)
+    assert df.Fz_L1.iloc[0] == 3200
 
 
 def test_read_run_csv_drops_unreliable(synthetic_csv):
     df = cb.read_run_csv(synthetic_csv)
     assert "Lat_Veh" not in df.columns
+    with pytest.raises(ValueError, match="drift"):
+        cb.read_run_csv(synthetic_csv, columns=["Lat_Veh"])
 
 
 def test_read_run_csv_respects_order_and_rejects_unknown(synthetic_csv, tmp_path):
@@ -142,3 +168,14 @@ def test_read_run_csv_respects_order_and_rejects_unknown(synthetic_csv, tmp_path
     unknown.write_text("Time,Madeup_Channel\n0,7\n")
     with pytest.raises(ValueError, match="Unregistered"):
         cb.read_run_csv(unknown)
+    with pytest.raises(ValueError, match="Missing requested"):
+        cb.read_run_csv(synthetic_csv, columns=["Time", "Not_Written"])
+
+
+def test_output_constant_aliases():
+    """Renamed constants keep their legacy names as aliases (compat)."""
+    assert cb.OUTPUTS_DEFAULT is cb.OUTPUTS_OBSERVABLE
+    assert cb.OUTPUTS_TIRE is cb.OUTPUTS_TRUTH
+    assert cb.PRIVILEGED_PREFIXES is cb.TRUTH_ONLY_PREFIXES
+    assert "Fx_L1" in cb.OUTPUTS_TIRE and "Fx_L1" not in cb.OUTPUTS_DEFAULT
+    assert "Vx" in cb.OUTPUTS_DEFAULT

@@ -46,7 +46,9 @@ import sys
 import warnings
 from pathlib import Path
 
-from result_contract import CHANNEL_REGISTRY, channel, load_run, no_truth_channels
+import pandas as pd
+
+from result_contract import CHANNEL_REGISTRY, channel
 from scenario_schema import SimulationConfig
 from vehicle_registry import product_version as resolve_version, sha256
 
@@ -102,9 +104,8 @@ def resolve_paths(prog=None, datadir=None, base=None,
 
 # ---------------------------------------------------------------------------
 # ERD output channels (WRT_<name> keywords in override.par).
-# A proven set for vehicle-dynamics identification work: cg states, four wheel
-# speeds/torques/steer angles, tire forces & slips (ground truth - evaluation
-# only!), roll/pitch for IMU gravity projection, four motor speeds.
+# OUTPUTS_DEFAULT keeps scenario files small; pass outputs=OUTPUTS_CORE (or
+# add tire names) whenever tire forces / slips are part of the task.
 # NOTE: WRT_ROLL / WRT_PITCH appear in the CSV header as "Roll" / "Pitch".
 OUTPUTS_CORE = [
     "Vx", "Vy", "Ax", "Ay", "AVz",
@@ -122,18 +123,22 @@ OUTPUTS_EXTRA = [
     "ROLL", "PITCH",            # Euler angles [deg] - gravity projection
     "AV_Mt_D1_L", "AV_Mt_D1_R", "AV_Mt_D2_L", "AV_Mt_D2_R",  # motor speeds [rpm]
 ]
-OUTPUTS_OBSERVABLE = [n for n in OUTPUTS_CORE + OUTPUTS_EXTRA if channel(n).role != "truth"]
-OUTPUTS_TRUTH = [n for n in OUTPUTS_CORE if channel(n).role == "truth"]
+OUTPUTS_DEFAULT = [n for n in OUTPUTS_CORE + OUTPUTS_EXTRA if channel(n).category != "tire"]
+OUTPUTS_TIRE = [n for n in OUTPUTS_CORE if channel(n).category == "tire"]
 
 # Wheel corner naming used by CarSim channels (global convention):
 #   L1=FL  R1=FR  L2=RL  R2=RR   (axle 1 = front, 2 = rear)
 
-# CSV units and roles are maintained in result_contract.CHANNEL_REGISTRY.
-# Channels that are simulator ground truth. If an estimator/consumer must stay
-# "blind" to internal states (e.g. online validation), keep these OUT of it and
-# use them only for evaluation. Observable states = everything else above.
-TRUTH_ONLY_PREFIXES = ("Fx_", "Fy_", "Fz_", "Kappa_", "Alpha_")
+# CSV units are maintained in result_contract.CHANNEL_REGISTRY.
+# Prefixes the optional research workflows (estimator validation) treat as
+# privileged simulator outputs; ordinary CarSim reads may use them freely.
+PRIVILEGED_PREFIXES = ("Fx_", "Fy_", "Fz_", "Kappa_", "Alpha_")
 UNRELIABLE_COLS = ("Lat_Veh", "Lat_Targ")  # known-drift artifacts; use Yo/Yaw
+
+# Deprecated aliases (kept so existing imports keep working):
+OUTPUTS_OBSERVABLE = OUTPUTS_DEFAULT
+OUTPUTS_TRUTH = OUTPUTS_TIRE
+TRUTH_ONLY_PREFIXES = PRIVILEGED_PREFIXES
 
 
 def si_scale(col):
@@ -211,7 +216,7 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
             raise ValueError("Raw override conflicts with typed configuration: %s" % line)
         if "\n" in line or "\r" in line:
             raise ValueError("Supply one keyword line per list entry")
-    outputs = outputs if outputs is not None else OUTPUTS_OBSERVABLE
+    outputs = outputs if outputs is not None else OUTPUTS_DEFAULT
     lines = [
         "PARSFILE", "OPT_ERROR_DIALOG 0", "PARSFILE " + str(base_run_all),
         "OPT_ERROR_DIALOG 0", "OPT_ALL_WRITE 0", "OPT_VS_FILETYPE 4",
@@ -329,18 +334,48 @@ def run_solver(simfile_path, prog=None, timeout=600):
 # ---------------------------------------------------------------------------
 # 3) CSV reader
 # ---------------------------------------------------------------------------
-def read_run_csv(path, columns=None, *, allow_truth=False):
-    """Read run.csv into a pandas DataFrame with SI units.
+def read_run_csv(path, columns=None, units="SI", *, allow_truth=None):
+    """Read run.csv into a pandas DataFrame.
 
-    Defaults to sensor-eligible channels only. Truth access requires an explicit
-    allow_truth=True for evaluation. All native columns must have registered
-    units; missing requested columns raise. Prefer load_run() with an explicit
-    estimator whitelist for research pipelines.
+    Returns every registered channel the file contains - tire outputs
+    (Fx/Fy/Fz/Kappa/Alpha) included, no flags needed; pass ``columns`` to
+    select. ``units="SI"`` (default) converts to SI, ``units="native"``
+    returns raw CarSim values. Unknown native columns and missing requested
+    columns raise - units are never guessed. Lat_Veh/Lat_Targ (verified drift
+    artifacts) are dropped unless explicitly requested, in which case an
+    explanatory error is raised.
+
+    Estimator isolation is an optional research-workflow concern, not a core
+    behavior: see result_contract.load_run() and
+    references/workflows/estimator-validation.md.
     """
-    if columns is not None and not allow_truth:
-        no_truth_channels(columns)
-    run = load_run(path)
-    return run.evaluator_view(columns) if allow_truth else run.estimator_view(columns)
+    if allow_truth is not None:
+        warnings.warn(
+            "allow_truth is deprecated and ignored: read_run_csv returns all "
+            "registered channels; estimator isolation lives in "
+            "load_run()/estimator_view() (research workflow)",
+            DeprecationWarning, stacklevel=2)
+    if units not in ("SI", "native"):
+        raise ValueError("units must be 'SI' or 'native', got %r" % (units,))
+    frame = pd.read_csv(path)
+    requested = list(columns) if columns is not None else None
+    for name in requested or ():
+        if name in UNRELIABLE_COLS:
+            raise ValueError(
+                "%s is excluded as a verified drift artifact; use Yo/Yaw "
+                "for lateral position" % name)
+    frame = frame.drop(columns=[c for c in UNRELIABLE_COLS if c in frame])
+    if "Time" not in frame:
+        raise ValueError("Missing Time channel")
+    scales = {name: channel(name).scale for name in frame.columns}
+    if requested:
+        missing = [c for c in requested if c not in frame]
+        if missing:
+            raise ValueError("Missing requested channels: %s" % missing)
+    if units == "SI":
+        for name, scale in scales.items():
+            frame[name] = pd.to_numeric(frame[name], errors="raise") * scale
+    return frame if requested is None else frame.loc[:, requested]
 
 
 def summarize(df):

@@ -1,4 +1,10 @@
-# Estimator input and validation boundary
+# Estimator input and validation boundary (optional research workflow)
+
+This is a workflow-layer contract on top of the core runtime, not a core
+behavior: CarSim core reads and writes tire outputs (Fx/Fy/Fz/Kappa/Alpha) like
+any other channel. These rules apply only once you enter an estimator /
+machine-learning workflow and decide such channels are privileged simulator
+information for your study.
 
 Declare the estimator's hardware channels before generating data. A no-tire-force
 or no-parameter-truth estimator receives only the declared observations. The

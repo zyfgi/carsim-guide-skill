@@ -1,6 +1,6 @@
 # Python Interface Walkthrough (scripts/carsim_batch.py)
 
-This document walks through the design and evidence behind `scripts/carsim_batch.py`. The original runtime mechanics were field-tested on CarSim 2024.0. Research APIs and their verification evidence are documented in research-experiments.md and evals/results/.
+This document walks through the design and evidence behind `scripts/carsim_batch.py`. The original runtime mechanics were field-tested on CarSim 2024.0. Research-workflow APIs and their verification evidence are documented in `references/workflows/research-experiments.md` and evals/results/.
 
 **Install paths**: run `scripts/setup_paths.py` once per machine — it discovers the CarSim install, verifies the CLI + 64-bit DLL, and caches everything (MATLAB and an explicitly selected base with SHA256) to `~/.carsim_guide_paths.json`. Every function and CLI flag below then resolves paths automatically: explicit argument > env var (`CARSIM_PROG` / `CARSIM_DATADIR` / `CARSIM_BASE`) > that cache.
 
@@ -69,7 +69,7 @@ subprocess.run(cmd, capture_output=True, text=True, timeout=...)
 
 ## 4. Native CSV unit conversion
 
-The reader now defaults to observable-only; `allow_truth=True` is an explicit evaluator opt-in. Unknown channels and missing requested columns raise. The authoritative registry is in result_contract.py; see channel-registry.md. Do not use this reader on already-SI observable.csv or truth.csv.
+The core reader `read_run_csv(path, columns=None, units="SI")` returns every registered channel the file contains — tire outputs (Fx/Fy/Fz/Kappa/Alpha) included, no flags needed. `units="native"` returns raw CarSim values; unknown channels and missing requested columns raise (units are never guessed). The authoritative registry is in result_contract.py; see channel-registry.md. Do not use this reader on already-SI observable.csv or truth.csv from the research workflow.
 
 | CSV column | Native unit | → SI factor |
 |---|---|---|
@@ -84,9 +84,11 @@ The reader now defaults to observable-only; `allow_truth=True` is an explicit ev
 
 Sign conventions (verified): left turn → AVz > 0; My_Dr positive = drive, negative = regen; My_Bk non-positive while moving forward. Wheel corners `L1=FL, R1=FR, L2=RL, R2=RR`.
 
-**Channel partitioning** (data-isolation principle):
-- `TRUTH_ONLY_PREFIXES = (Fx_, Fy_, Fz_, Kappa_, Alpha_)` — simulator ground truth. For state estimation / online validation these channels **must never enter the estimator**; use them only for evaluation;
-- `UNRELIABLE_COLS = (Lat_Veh, Lat_Targ)` — verified drift artifacts (up to 15 m); dropped automatically on read; derive lateral position from `Yo/Yaw`.
+**Channel partitioning**:
+- `PRIVILEGED_PREFIXES = (Fx_, Fy_, Fz_, Kappa_, Alpha_)` — simulator-internal tire outputs. Core readers return them like any channel; the optional research workflows (estimator validation, see `references/workflows/estimator-validation.md`) mark them privileged and keep them out of estimator inputs;
+- `UNRELIABLE_COLS = (Lat_Veh, Lat_Targ)` — verified drift artifacts (up to 15 m); dropped automatically on read (explicitly requesting one raises with the reason); derive lateral position from `Yo/Yaw`.
+
+Deprecated names kept for compatibility: `OUTPUTS_DEFAULT` was `OUTPUTS_OBSERVABLE`, `OUTPUTS_TIRE` was `OUTPUTS_TRUTH`, `PRIVILEGED_PREFIXES` was `TRUTH_ONLY_PREFIXES`.
 
 ## 5. Usage examples
 
@@ -126,7 +128,7 @@ run_solver(sim, timeout=600)  # prog defaults to the cached install
 df = read_run_csv("C:/work/lane_change/run.csv", columns=["Time", "Vx", "Ay", "AVz"])
 ```
 
-The strict reader validates all loaded native CSV units. For long runs, request only necessary WRT channels during generation to control file size. See research-experiments.md for the preferred load_run() API and explicit estimator whitelist.
+The strict reader validates all loaded native CSV units. For long runs, request only necessary WRT channels during generation to control file size (add `outputs=cb.OUTPUTS_TIRE` when the task needs tire forces/slips). For estimator/evaluator isolation, sensor replay and manifests — the optional research workflow — see `references/workflows/research-experiments.md` and its `load_run()` API.
 
 ## 6. Companion utility
 

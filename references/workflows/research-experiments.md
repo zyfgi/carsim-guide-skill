@@ -86,9 +86,12 @@ physics adequacy, excitation, observability and training success remain separate
 
 ## Migration from the old API
 
-`read_run_csv()` now defaults to observable-only, rejects unknown units and raises
-on a missing requested column. Use `load_run(..., estimator_channels=[...])` for
-research; use `allow_truth=True` only in evaluation code. Motor speed is rad/s,
+Core `read_run_csv()` returns every registered channel — tire outputs included —
+in SI (`units="native"` for raw CarSim values); unknown units still fail and
+missing requested columns still raise. Estimator isolation is this workflow's
+responsibility, not the core reader's: use `load_run(...,
+estimator_channels=[...])` plus `estimator_view()`/`evaluator_view()`. The old
+core-level `allow_truth=` argument is a deprecated no-op. Motor speed is rad/s,
 not rpm. Legacy unbound newest-base caches need explicit rebinding. Unknown install
 directory versions require `product_version`. `extra_lines` remains a deprecated
 alias of `unsafe_extra_lines`; neither may override typed timing or duplicate a

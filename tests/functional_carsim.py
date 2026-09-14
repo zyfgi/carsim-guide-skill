@@ -44,7 +44,7 @@ def _run_scenario(tmp_path, name, tstop, speed_rows, steer_rows, extra_lines,
                   timeout=600):
     sim = cb.make_scenario(str(tmp_path / name), PATHS[2], PATHS[0], PATHS[1],
                            tstop, speed_rows, steer_rows,
-                           extra_lines=extra_lines)
+                           unsafe_extra_lines=extra_lines)
     cb.run_solver(sim, timeout=timeout)
     return Path(tmp_path / name)
 

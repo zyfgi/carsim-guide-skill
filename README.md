@@ -2,23 +2,32 @@
 
 # CarSim Guide
 
-A skill for configuring and running CarSim headless, with a research experiment contract for reproducible datasets. It supports typed scenarios, named vehicle/base bindings with SHA256, SI channel units, estimator/evaluator separation, sensor replay and post-run validation. CarSim 2024.0 is the tested solver; Simulink co-simulation remains available through the existing optional demos. After one GUI base expansion per vehicle, the batch workflow uses the CLI and writes scenario artifacts outside the database. Verification results distinguish Python tests, licensed solver runs and manual agent-behavior evals.
+A skill for operating CarSim from an AI agent: environment discovery, headless simulation, vehicle/run configuration, parameter overrides, scenario generation, batch runs, output parsing with SI conversion, control inputs (including per-wheel torque), database exploration, Simulink co-simulation and solver diagnostics. CarSim 2024.0 is the tested solver. After one GUI base expansion per vehicle, the batch workflow uses the CLI and writes scenario artifacts outside the database. Optional research workflows (manifest-tracked data generation, estimator validation, sensor replay) layer on top and are never required for ordinary operation. Verification results distinguish Python tests, licensed solver runs and manual agent-behavior evals.
 
 ## What it does
 
 | Task | How |
 |---|---|
 | First task on a machine | `scripts/setup_paths.py` — discovers and validates install paths; lists base candidates for explicit selection |
-| Reproducible research experiments | `scripts/experiment_runner.py` — validated YAML/JSON, vehicle hash, manifest, acceptance checks and sensor packets |
 | Run a scenario headless | `scripts/carsim_batch.py` generates `override.par` + `simfile.sim`, calls the solver CLI, and verifies success |
 | Change speed / steering / friction / duration | keyword overrides appended after a GUI-expanded base (CarSim parses last-write-wins) |
 | Set sprung mass, CG and yaw inertia | `VehicleOverrides(sprung_mass_kg=..., cg_y_m=..., izz_kgm2=...)`; SI inputs convert internally |
+| Change any other CarSim keyword | `unsafe_extra_lines=[...]` escape hatch (advanced keywords not yet typed) |
 | Switch to another vehicle | one-time GUI base expansion, then override everything else |
-| Read results | `load_run()` → SI observable/truth partitions; explicit channel units, no unknown-unit fallback |
+| Read results | `read_run_csv()` → SI DataFrame of every registered channel (`units="native"` for raw values; unknown units fail, never guessed) |
 | Close the loop in Simulink | co-simulation via the `vs_sf` S-Function — `examples/simulink_cosim.py` + `scripts/cosim_model.m` (PI yaw-tracking demo, verified end to end) |
 | Torque vectoring / TCS / event tests | per-wheel torque imports (`examples/torque_vectoring.py` — zero-steer yaw verified), open-loop throttle/brake tables, FSAE acceleration/braking patterns |
 | Explore the vehicle database | grep recipes in `references/` — no tooling required |
 | Understand dataset files | `.par` syntax templates in `references/` |
+| Batch runs / sweeps | `examples/param_sweep.py`, experiment YAML templates |
+
+## Optional research workflows
+
+On top of the core runtime, for data-driven studies only (never required to run CarSim):
+
+- **Manifest-tracked data generation / identification** — `scripts/experiment_runner.py` + typed scenario YAML: vehicle hash binding, run manifests, post-run validation. See [workflows/research-experiments.md](references/workflows/research-experiments.md).
+- **Estimator validation** — declared hardware channels, privileged-channel isolation (`GroundTruthLeakageError`), causal sensor replay. See [workflows/estimator-validation.md](references/workflows/estimator-validation.md).
+- **Channel units & categories** — [channel-registry.md](references/channel-registry.md).
 
 ## Install
 
@@ -82,7 +91,7 @@ The skill triggers on CarSim execution, configuration and automation; generic ve
 
 **First CarSim task on a machine**: the agent runs `scripts/setup_paths.py` once (SKILL.md §0, step 0) — about one second of scanning, then the install paths live in `~/.carsim_guide_paths.json` and later sessions reuse the cache, revalidate required paths and verify a bound base hash.
 
-### Research workflow
+### Research workflow (optional)
 
 1. Inspect the vehicle/Run Control in a GUI-expanded base, then bind it with
    `scripts/vehicle_registry.py` (explicit name, path, SHA256, version and identity).
@@ -92,18 +101,20 @@ The skill triggers on CarSim execution, configuration and automation; generic ve
 4. Add `--run` with a fresh output root to execute and validate. Accepted runs produce
    SI observations, separate evaluation data, sensor packets and `manifest.json`.
 
-See [research experiments](references/research-experiments.md),
+See [research experiments](references/workflows/research-experiments.md),
 [channel units](references/channel-registry.md) and
-[estimator boundaries](references/estimator-validation.md) for the exact contract.
+[estimator boundaries](references/workflows/estimator-validation.md) for the exact contract.
 Templates for friction/mass sweeps, tire forces and vehicle parameter identification
 are in `examples/`. They generate data; model training and identifiability analysis
 depend on the research design.
 
-**Migration:** the default CSV reader no longer returns truth channels; evaluator
-code must request `allow_truth=True` or `evaluator_view()`. Motor speeds now use rad/s.
-Unknown units fail instead of silently passing through. Old newest-base caches require
-explicit rebinding. `extra_lines` is deprecated in favor of typed parameters or the
-advanced `unsafe_extra_lines` escape hatch.
+**Migration (core readers):** `read_run_csv()` returns every registered channel —
+tire outputs included — in SI by default (`units="native"` for raw CarSim values).
+The old `allow_truth=` flag is a deprecated no-op; estimator/evaluator isolation now
+lives only in the optional workflow (`load_run(..., estimator_channels=[...])`).
+Motor speeds use rad/s; unknown units fail instead of silently passing through;
+old newest-base caches require explicit rebinding; `extra_lines` is deprecated in
+favor of typed parameters or the advanced `unsafe_extra_lines` escape hatch.
 
 ## Requirements
 
@@ -133,9 +144,9 @@ scripts/setup_paths.py             # one-time install discovery -> cached paths 
 scripts/carsim_batch.py            # generate / run / read workflow (CLI + library API)
 scripts/scenario_schema.py         # typed config and semantic validation
 scripts/vehicle_registry.py        # explicit base identity and SHA256
-scripts/experiment_runner.py       # compile / run / validate / manifest
-scripts/result_contract.py         # explicit units, observable and evaluator access
-scripts/sensor_replay.py           # causal seeded sensor packets
+scripts/experiment_runner.py       # compile / run / validate / manifest (optional research workflow)
+scripts/result_contract.py         # channel registry: native units, SI factors, categories
+scripts/sensor_replay.py           # causal seeded sensor packets (optional research workflow)
 scripts/validate_run.py            # fresh complete results and echoed parameters
 schemas/experiment.schema.json     # strict experiment schema v1
 scripts/cosim_model.m              # Simulink co-sim model builder (matlab -batch)
@@ -145,7 +156,7 @@ examples/param_sweep.py            # runnable batch parameter-sweep example
 examples/simulink_cosim.py         # runnable Simulink+CarSim closed-loop demo
 examples/torque_vectoring.py       # runnable torque-vectoring demo (zero-steer yaw)
 tests/                             # unit tests (CI) + solver-in-loop functional checks (auto-skip without CarSim)
-evals/evals.json                   # manual trigger/behavior cases, including research isolation
+evals/evals.json                   # manual trigger/behavior cases (core workflows, negative triggers)
 evals/README.md                    # protocols and versioned executable evidence
 evals/run_checks.py               # pytest + licensed manifest verification → JSON records
 references/python-interface.md     # script walkthrough + unit conversion contract
@@ -154,6 +165,7 @@ references/dataset-syntax.md       # .par dataset syntax templates
 references/advanced-controls.md    # open-loop controls, torque imports, table semantics, FSAE notes
 references/simulink-cosim.md       # Simulink co-simulation: verified recipe + pitfalls
 references/vs-c-api.md             # VS C API stepping fallback (prototype)
+references/workflows/              # optional research workflows (data generation, estimator validation)
 .github/workflows/ci.yml           # frontmatter / syntax / size / eval-structure checks on push
 ```
 

@@ -88,7 +88,9 @@ def test_invalid_timing(dt, duration):
         SimulationConfig(dt, duration)
 
 
-def test_units_access_and_copy_isolation(tmp_path, config):
+def test_estimator_truth_isolation_optional_workflow(tmp_path, config):
+    """Estimator/evaluator isolation lives in the OPTIONAL research workflow
+    (load_run + estimator_view); the core reader never applies it."""
     native_run(tmp_path, config)
     run = load_run(tmp_path / "run.csv", ["Vx"])
     assert run.observable.Vx.iloc[0] == 10
@@ -98,8 +100,9 @@ def test_units_access_and_copy_isolation(tmp_path, config):
         run.estimator_view(["Vx", "Fx_L1"])
     with pytest.raises(KeyError):
         run.estimator_view(["AV_Mt_D1_L"])  # sensor-eligible but not whitelisted
-    with pytest.raises(GroundTruthLeakageError):
-        cb.read_run_csv(tmp_path / "run.csv", ["Fx_L1"])
+    # core reader: tire outputs pass through untouched, no isolation rules
+    core = cb.read_run_csv(tmp_path / "run.csv")
+    assert core.Fx_L1.iloc[0] == 500
     view = run.estimator_view()
     view.loc[0, "Vx"] = -100
     assert run.observable.Vx.iloc[0] == 10
