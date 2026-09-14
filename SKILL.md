@@ -111,7 +111,7 @@ LOG_ENTRY / END
 | `make_scenario(..., config=SimulationConfig(dt, duration), vehicle_overrides=VehicleOverrides(...))` | writes override.par + simfile.sim from one timing config; legacy tstop/tstep accepted only without config; advanced syntax uses `unsafe_extra_lines` |
 | `run_solver(simfile_path, prog=None, timeout=600)` | subprocess CLI call (argv list + forward slashes), success-judged, raises with output tail; `prog` defaults to the cache |
 | `read_run_csv(path, columns=None, units="SI")` | core reader: every registered channel (tire outputs included), SI by default / `units="native"` for raw CarSim values; unknown units and missing requested channels fail |
-| `load_run(path, estimator_channels=[...])` | **optional research workflow**: role-partitioned SI views with estimator-whitelist isolation (`estimator_view` / `evaluator_view`) |
+| `load_run(path, estimator_channels=[...])` | **optional research workflow** (`scripts/workflows/estimator_validation.py`): role-partitioned SI views with estimator-whitelist isolation (`estimator_view` / `evaluator_view`) |
 | `experiment_runner.py scenario.yaml --registry vehicles.json --out runs [--run]` | optional research workflow: typed schema → pinned base → manifest → solver, validation and sensor packets |
 | `si_scale(col)` / `summarize(df)` / constants | column→SI factor (explicit registry lookup); stats; `OUTPUTS_CORE` (all channels incl. tire), `OUTPUTS_DEFAULT` (compact default), `OUTPUTS_TIRE`, `UNRELIABLE_COLS` |
 

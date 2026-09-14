@@ -12,7 +12,7 @@ manifest, base parameters, echo, full native CSV and truth partition belong to
 the evaluator; do not pass the RunData object or manifest to the model/data loader.
 
 ```python
-from result_contract import load_run
+from workflows.estimator_validation import load_run
 from sensor_replay import replay, estimator_stream
 
 run = load_run("run.csv", estimator_channels=["Ax", "Ay", "AVz"])

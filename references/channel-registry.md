@@ -42,9 +42,10 @@ when changing a vehicle, solver release or unit configuration. Standard gravity
 
 `carsim_batch.read_run_csv(path, columns, units)` is the core reader:
 `units="SI"` (default) or `units="native"` for raw CarSim values. The
-workflow-layer helpers live in the same module but are not part of the core
-contract: `RunData.estimator_view()` returns a copy and checks the workflow
-`role` and whitelist membership; `GroundTruthLeakageError` blocks
-intrinsically privileged requests from estimator code. This is an
-accidental-leakage guard within the workflow API, not a security sandbox
-preventing direct access to the original CSV.
+workflow-layer helpers live in `scripts/workflows/estimator_validation.py`
+(`RunData.estimator_view()` returns a copy and checks the workflow `role` and
+whitelist membership; `GroundTruthLeakageError` blocks intrinsically privileged
+requests from estimator code). This is an accidental-leakage guard within the
+workflow API, not a security sandbox preventing direct access to the original
+CSV. The core never imports the workflow layer; the dependency direction is
+workflow → core → CarSim.

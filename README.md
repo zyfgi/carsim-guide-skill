@@ -145,7 +145,8 @@ scripts/carsim_batch.py            # generate / run / read workflow (CLI + libra
 scripts/scenario_schema.py         # typed config and semantic validation
 scripts/vehicle_registry.py        # explicit base identity and SHA256
 scripts/experiment_runner.py       # compile / run / validate / manifest (optional research workflow)
-scripts/result_contract.py         # channel registry: native units, SI factors, categories
+scripts/result_contract.py         # core channel registry: native units, SI factors, categories
+scripts/workflows/                 # optional workflow layer (estimator validation); core never imports it
 scripts/sensor_replay.py           # causal seeded sensor packets (optional research workflow)
 scripts/validate_run.py            # fresh complete results and echoed parameters
 schemas/experiment.schema.json     # strict experiment schema v1

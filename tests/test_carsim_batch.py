@@ -132,10 +132,34 @@ def test_read_run_csv_converts_to_si(synthetic_csv):
 
 def test_read_tire_force_allowed(synthetic_csv):
     """Regression: core must never reject tire outputs; isolation is a
-    workflow-layer concern (result_contract.load_run / estimator_view)."""
+    workflow-layer concern (workflows.estimator_validation.load_run /
+    estimator_view)."""
     df = cb.read_run_csv(synthetic_csv, columns=["Time", "Fx_L1", "Fz_L1"])
     assert list(df.columns) == ["Time", "Fx_L1", "Fz_L1"]
     assert df.Fx_L1.iloc[0] == 500.0
+
+
+def test_core_modules_never_import_workflow_layer():
+    """Dependency direction: workflow -> core -> CarSim. Module-level imports of
+    the core files must not pull sensor replay, the estimator workflow or the
+    experiment runner (function-level lazy imports on workflow-only code paths,
+    e.g. scenario_schema.validate_experiment's SensorConfig, are out of scope:
+    importing carsim_batch never executes them)."""
+    import ast
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts")
+    forbidden = ("sensor_replay", "workflows", "experiment_runner", "validate_run",
+                 "estimator_validation")
+    for name in ("result_contract.py", "carsim_batch.py", "scenario_schema.py"):
+        tree = ast.parse(open(os.path.join(root, name), encoding="utf-8").read())
+        for node in tree.body:
+            if isinstance(node, ast.Import):
+                parts = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                parts = [node.module or ""]
+            else:
+                continue
+            for mod in parts:
+                assert not any(f in mod for f in forbidden), (name, mod)
 
 
 def test_read_run_csv_native_units(synthetic_csv):

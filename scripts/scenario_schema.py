@@ -5,7 +5,7 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional
 
-from result_contract import CHANNEL_REGISTRY, channel, no_truth_channels
+from result_contract import CHANNEL_REGISTRY, channel
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,14 @@ def validate_experiment(config):
     jsonschema.Draft202012Validator(json.loads(schema.read_text(encoding="utf-8"))).validate(config)
     sim = SimulationConfig(**config["simulation"])
     VehicleOverrides(**config.get("vehicle_parameters", {}))
-    no_truth_channels(config["outputs"]["estimator"])
+    # Schema-level check via core registry metadata only; the enforcing
+    # privileged policy (GroundTruthLeakageError) lives in the workflow layer.
+    privileged = [n for n in config["outputs"]["estimator"]
+                  if channel(n).role == "truth"]
+    if privileged:
+        raise ValueError(
+            "Estimator outputs cannot include privileged truth-role channels: %s"
+            % privileged)
     for name in config["outputs"]["evaluator"]:
         channel(name)
     for name in config["outputs"]["estimator"] + config["outputs"]["evaluator"]:

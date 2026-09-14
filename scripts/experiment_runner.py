@@ -11,11 +11,11 @@ import subprocess
 import time
 
 from carsim_batch import make_scenario, resolve_paths, run_solver
-from result_contract import load_run
 from scenario_schema import SimulationConfig, VehicleOverrides, load_experiment, validate_experiment
 from sensor_replay import replay
 from validate_run import validate_run
 from vehicle_registry import resolve_vehicle, sha256
+from workflows.estimator_validation import load_run
 
 
 def utc_now():

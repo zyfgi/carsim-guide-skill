@@ -1,6 +1,32 @@
 # Refactor report — P0: generalizing the skill beyond the research contract
 
-Scope: P0 only, per the agent checklist (`SKILL Core 去论文化 / Core-Workflow 分层 /
+## P0.1 follow-up: hard module split of result_contract.py
+
+Executed per review after P0 (no functional changes intended):
+
+- `scripts/result_contract.py` is now core-only: channel registry, unit
+  conversion factors, categories, aliases (`OUTPUT_ALIASES`), `UNRELIABLE_COLS`,
+  `channel()`. No pandas import, no estimator semantics.
+- New `scripts/workflows/estimator_validation.py` holds the entire workflow
+  layer: `GroundTruthLeakageError`, the privileged policy
+  (`no_truth_channels`), `RunData` with `estimator_view`/`evaluator_view`, and
+  `load_run`. It imports the core, never the reverse.
+- `sensor_replay.py` stays in `scripts/` (workflow utility); it imports the
+  policy from `workflows.estimator_validation`. The core never imports it.
+- `scenario_schema.py` validates the estimator whitelist through core registry
+  metadata (`channel(n).role`) with a schema-level `ValueError`, so importing
+  `carsim_batch` (which needs `SimulationConfig`) pulls no workflow module.
+  Its function-level lazy `SensorConfig` import on workflow-only paths remains
+  (P2 module split will relocate the experiment-validation half).
+- New regression `test_core_modules_never_import_workflow_layer` AST-checks
+  module-level imports of `result_contract.py`, `carsim_batch.py`,
+  `scenario_schema.py` against workflow modules.
+- Verification after the split: 73 unit tests (72 + 1 new), ruff clean,
+  3 solver-in-loop checks on licensed CarSim 2024.0.
+
+---
+
+Original P0 scope, per the agent checklist (`SKILL Core 去论文化 / Core-Workflow 分层 /
 Output API 去 truth 强制限制 / 同步 documentation / 修复旧 eval`). P1–P3 items are
 listed as TODO at the end and were deliberately not started.
 

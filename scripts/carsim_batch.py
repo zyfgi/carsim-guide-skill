@@ -346,8 +346,7 @@ def read_run_csv(path, columns=None, units="SI", *, allow_truth=None):
     explanatory error is raised.
 
     Estimator isolation is an optional research-workflow concern, not a core
-    behavior: see result_contract.load_run() and
-    references/workflows/estimator-validation.md.
+    behavior: see scripts/workflows/estimator_validation.py (load_run).
     """
     if allow_truth is not None:
         warnings.warn(

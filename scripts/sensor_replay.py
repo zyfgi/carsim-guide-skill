@@ -10,7 +10,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from result_contract import no_truth_channels
+from workflows.estimator_validation import no_truth_channels
 
 
 @dataclass(frozen=True)
