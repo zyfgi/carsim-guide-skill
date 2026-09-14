@@ -39,6 +39,8 @@ jobs:
           assert n_lines < 500, f"SKILL.md is {n_lines} lines (limit 500)"
           for f in ("scripts/carsim_batch.py", "scripts/setup_paths.py",
                     "scripts/dump_dll_exports.py",
+                    "scripts/scenario_runner.py", "scripts/base_registry.py",
+                    "scripts/parameters.py", "scripts/database_tools.py",
                     "scripts/workflows/estimator_validation.py",
                     "examples/param_sweep.py", "examples/simulink_cosim.py",
                     "examples/torque_vectoring.py"):

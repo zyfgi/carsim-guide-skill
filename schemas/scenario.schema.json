@@ -1,61 +1,196 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "CarSim generic scenario v1",
-  "type": "object", "additionalProperties": false,
-  "required": ["schema_version", "scenario", "base", "simulation", "road", "maneuver", "outputs"],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario",
+    "base",
+    "simulation",
+    "road",
+    "maneuver",
+    "outputs"
+  ],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {
+      "const": 1
+    },
     "scenario": {
-      "type": "object", "additionalProperties": false, "required": ["id"],
-      "properties": {"id": {"$ref": "#/$defs/name"}, "notes": {"type": "string", "maxLength": 2000}}
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/name"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      }
     },
     "base": {
-      "type": "object", "additionalProperties": false, "required": ["name"],
-      "properties": {"name": {"$ref": "#/$defs/name"}}
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        }
+      }
     },
     "simulation": {
-      "type": "object", "additionalProperties": false, "required": ["duration", "dt"],
-      "properties": {"duration": {"type": "number", "exclusiveMinimum": 0}, "dt": {"type": "number", "minimum": 0.0000001}}
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "duration",
+        "dt"
+      ],
+      "properties": {
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "dt": {
+          "type": "number",
+          "minimum": 1e-07
+        }
+      }
     },
-    "road": {"$ref": "#/$defs/road"},
-    "vehicle": {"$ref": "#/$defs/vehicleParameters"},
+    "road": {
+      "$ref": "#/$defs/road"
+    },
+    "vehicle": {
+      "$ref": "#/$defs/vehicleParameters"
+    },
     "parameters": {
       "type": "array",
       "items": {
-        "type": "object", "additionalProperties": false, "required": ["keyword", "value"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "keyword",
+          "value"
+        ],
         "properties": {
-          "keyword": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$", "maxLength": 32},
-          "value": {"type": "number"}
+          "keyword": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "maxLength": 32
+          },
+          "value": {
+            "type": "number"
+          }
         }
       }
     },
     "maneuver": {
-      "type": "object", "additionalProperties": false, "required": ["speed_kmh", "steering_deg"],
-      "properties": {"speed_kmh": {"$ref": "#/$defs/profile"}, "steering_deg": {"$ref": "#/$defs/profile"}}
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "speed_kmh",
+        "steering_deg"
+      ],
+      "properties": {
+        "speed_kmh": {
+          "$ref": "#/$defs/profile"
+        },
+        "steering_deg": {
+          "$ref": "#/$defs/profile"
+        }
+      }
     },
     "outputs": {
-      "type": "object", "additionalProperties": false, "required": ["channels"],
-      "properties": {"channels": {"$ref": "#/$defs/channels", "minItems": 1}}
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channels"
+      ],
+      "properties": {
+        "channels": {
+          "$ref": "#/$defs/channels",
+          "minItems": 1
+        }
+      }
     },
     "validation": {
-      "type": "object", "additionalProperties": false,
-      "properties": {"minimum_speed_mps": {"type": "number", "exclusiveMinimum": 0}}
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimum_speed_mps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
     }
   },
   "$defs": {
-    "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$", "maxLength": 100},
-    "channels": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-    "profile": {
-      "type": "array", "minItems": 2,
-      "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "maxLength": 100
     },
-    "road": {"type": "object", "additionalProperties": false, "required": ["mu"], "properties": {"mu": {"type": "number", "exclusiveMinimum": 0, "maximum": 2}}},
-    "vehicleParameters": {
-      "type": "object", "additionalProperties": false,
+    "channels": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "profile": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "number"
+        }
+      }
+    },
+    "road": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "friction"
+      ],
       "properties": {
-        "sprung_mass_kg": {"type": "number", "exclusiveMinimum": 0},
-        "cg_x_m": {"type": "number"}, "cg_y_m": {"type": "number"}, "cg_z_m": {"type": "number", "minimum": 0},
-        "izz_kgm2": {"type": "number", "exclusiveMinimum": 0}
+        "friction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 2
+        }
+      }
+    },
+    "vehicleParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sprung_mass_kg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "cg_x_m": {
+          "type": "number"
+        },
+        "cg_y_m": {
+          "type": "number"
+        },
+        "cg_z_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "izz_kgm2": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
       }
     }
   }

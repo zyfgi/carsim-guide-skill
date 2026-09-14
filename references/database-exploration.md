@@ -1,6 +1,26 @@
-# Database Exploration (no MCP required)
+# Database Exploration
 
-Every dataset in the CarSim database (DATADIR) is a **plain-text .par file** with a `#FullDataName` identity line. No special tooling is needed — grep plus recursive link-following covers all exploration. Dataset filenames look like `<Type>_<UUID>.par` — **UUIDs differ per install/version/clone, so always locate by name and never hardcode them**.
+Every dataset in the CarSim database (DATADIR) is a **plain-text .par file** with a `#FullDataName` identity line. Dataset filenames look like `<Type>_<UUID>.par` — **UUIDs differ per install/version/clone, so always locate by name and never hardcode them**.
+
+## 0. The Python API (scripts/database_tools.py — read-only)
+
+The high-frequency operations are a callable API, so an agent handles unknown
+keywords without hand-writing grep. Everything here only **reads**:
+
+```python
+import sys; sys.path.insert(0, "<skill>/scripts")
+import database_tools as db
+
+db.find_datasets(datadir, "spring")            # #FullDataName search -> [{path, full_data_name, library}]
+db.get_dataset_identity(path)                  # header identity dict (no UUID needed)
+db.get_parsfile_links(path, datadir)           # PARSFILE refs -> [{raw, path, exists}]
+db.resolve_dataset_tree(path, datadir, 3)      # cycle-safe recursive expansion
+db.find_keyword(datadir, "FS_COMP_COEFFICIENT")  # which datasets define a keyword
+db.search_database_text(datadir, "27 N/mm")    # case-insensitive free-text grep
+db.inspect_echo_keyword("run_echo.par", "M_SU")  # actual echoed value + comment
+```
+
+CLI equivalents: `python scripts/database_tools.py find-dataset|find-keyword|search|tree|identity|echo <query> --datadir <DATADIR>`. Pass `roots=["Suspensions", ...]` to keep scans inside chosen libraries. Workflow for unknown parameters: search → confirm keyword/unit in the dataset file → override (parameters.md) → verify with `inspect_echo_keyword`. The grep recipes below remain valid and show what the API wraps.
 
 Commands below use Git Bash syntax (in PowerShell, use `Select-String -Pattern … -Recurse` equivalents).
 

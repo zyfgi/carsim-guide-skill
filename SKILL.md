@@ -13,13 +13,15 @@ Updated 2026-09-14. Everything marked "verified" ran for real — the checks shi
 |---|---|
 | First task on a machine (or CarSim moved) | `scripts/setup_paths.py` — one-time discovery, caches install paths (§1) |
 | Run a scenario headless (batch) | §0–§3; script API in §4, walkthrough in `references/python-interface.md` |
-| Vehicle / dataset selection & exploration | §6 + `references/database-exploration.md` |
-| Change parameters (mass / CG / inertia / any keyword) | §5 (typed `VehicleOverrides`, `unsafe_extra_lines`) |
+| Run a scenario from YAML (manifest, validation) | `references/scenarios.md` → `scripts/scenario_runner.py` |
+| Vehicle / dataset selection & exploration | §6 + `references/database-exploration.md`; read-only API: `scripts/database_tools.py` |
+| Unknown parameter / keyword | `references/parameters.md` + `references/database-exploration.md` — search & confirm, never guess |
+| Change parameters (mass / CG / inertia / any keyword) | §5 (typed `VehicleOverrides`, `ScalarOverride`, `unsafe_extra_lines`) |
 | Read output variables, units, SI conversion | §5 + `references/channel-registry.md` |
+| Run failed / suspicious results | `references/run-validation.md` + §7 |
 | Throttle / brake / per-wheel torque / table rules | `references/advanced-controls.md` |
 | Batch runs / parameter sweeps | `examples/param_sweep.py` |
 | Simulink closed-loop control | `references/simulink-cosim.md` + `scripts/cosim_model.m`, `scripts/tv_cosim.m` |
-| Solver failure / diagnosis | §7 + `references/python-interface.md` §3 |
 | Read or edit .par datasets | `references/dataset-syntax.md` |
 | Hard real-time stepping (rare) | `references/vs-c-api.md` |
 | DLL export symbols | `scripts/dump_dll_exports.py` |
@@ -108,7 +110,10 @@ LOG_ENTRY / END
 | API | Purpose |
 |---|---|
 | `scripts/setup_paths.py` | one-time install discovery → `~/.carsim_guide_paths.json`; later calls (`--json`) re-print it in one line |
-| `make_scenario(..., config=SimulationConfig(dt, duration), vehicle_overrides=VehicleOverrides(...))` | writes override.par + simfile.sim from one timing config; legacy tstop/tstep accepted only without config; advanced syntax uses `unsafe_extra_lines` |
+| `scripts/scenario_runner.py <yaml> --registry bases.json --out runs [--run]` | generic scenario entry: YAML → pinned base → compile checks → solver → validation → `run_manifest.json` |
+| `scripts/base_registry.py` | bind/resolve GUI-expanded bases by **name + SHA256** (vehicle_registry.py is a compat wrapper) |
+| `scripts/database_tools.py` | read-only database exploration: find datasets/keywords, PARSFILE trees, echo lookup |
+| `make_scenario(..., config=SimulationConfig(dt, duration), vehicle_overrides=VehicleOverrides(...), scalar_overrides=[("KEYWORD", value)])` | writes override.par + simfile.sim from one timing config; legacy tstop/tstep accepted only without config; advanced syntax uses `unsafe_extra_lines` |
 | `run_solver(simfile_path, prog=None, timeout=600)` | subprocess CLI call (argv list + forward slashes), success-judged, raises with output tail; `prog` defaults to the cache |
 | `read_run_csv(path, columns=None, units="SI")` | core reader: every registered channel (tire outputs included), SI by default / `units="native"` for raw CarSim values; unknown units and missing requested channels fail |
 | `load_run(path, estimator_channels=[...])` | **optional research workflow** (`scripts/workflows/estimator_validation.py`): role-partitioned SI views with estimator-whitelist isolation (`estimator_view` / `evaluator_view`) |

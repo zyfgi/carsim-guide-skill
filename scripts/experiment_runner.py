@@ -2,9 +2,9 @@
 
 Research-workflow layer: experiment schema validation (estimator whitelists,
 sensors), pinned vehicle resolution, SI partitioned outputs, sensor replay and
-the research manifest. Generic scenario compilation is delegated to
-scenario_runner / carsim_batch; estimator policy lives in
-workflows/estimator_validation.
+the research manifest (a research extension of the generic run manifest).
+Compilation is delegated to scenario_runner - the generic compile/verify path
+is the only one; estimator policy lives in workflows/estimator_validation.
 """
 import argparse
 import copy
@@ -14,11 +14,11 @@ import json
 import math
 from pathlib import Path
 import platform
-import shutil
 import subprocess
 import time
 
-from carsim_batch import make_scenario, resolve_paths, run_solver
+import scenario_runner as sr
+from carsim_batch import resolve_paths, run_solver
 from result_contract import CHANNEL_REGISTRY, channel
 from scenario_schema import SimulationConfig, VehicleOverrides
 from sensor_replay import replay
@@ -150,21 +150,28 @@ def run_experiment(config, registry, output_root, prog=None, datadir=None,
 
     try:
         save()
-        base_copy = directory / "base_Run_all.par"
-        shutil.copyfile(vehicle["base_run_all"], base_copy)
-        if sha256(base_copy) != vehicle["base_sha256"]:
-            raise ValueError("Base changed during snapshot")
-        simulation = SimulationConfig(**config["simulation"])
-        overrides = VehicleOverrides(**config.get("vehicle_parameters", {}))
-        outputs = list(dict.fromkeys(config["outputs"]["estimator"] + config["outputs"]["evaluator"]))
-        if config.get("validation", {}).get("minimum_speed_mps") and "Vx" not in outputs:
-            outputs.append("Vx")
-        outputs = [n for n in outputs if n != "Time"]
-        sim = make_scenario(str(directory), str(base_copy), prog, datadir,
-                            config=simulation, speed_rows=config["maneuver"]["speed_kmh"],
-                            steer_rows=config["maneuver"]["steering_deg"], mu=config["road"]["mu"],
-                            vehicle_overrides=overrides, outputs=outputs,
-                            product_version=vehicle["carsim_version"])
+        # Compile through the generic runner: one compile/verify path for both
+        # ordinary scenarios and research experiments.
+        generic = {
+            "schema_version": 1,
+            "scenario": {"id": config["experiment"]["id"]},
+            "base": {"name": config["vehicle"]["base"]},
+            "simulation": config["simulation"],
+            "road": {"friction": config["road"]["mu"]},
+            "maneuver": config["maneuver"],
+            "vehicle": config.get("vehicle_parameters", {}),
+            "outputs": {"channels": list(dict.fromkeys(
+                config["outputs"]["estimator"] + config["outputs"]["evaluator"]))},
+            "validation": config.get("validation", {}),
+        }
+        info = sr.compile_scenario(generic, vehicle, prog, datadir, directory)
+        issues = sr.verify_compiled(directory, info, vehicle)
+        if issues:
+            raise ValueError("Compile check failed: %s" % "; ".join(
+                "%s: %s" % (i.code, i.message) for i in issues))
+        simulation = info["simulation"]
+        outputs = info["outputs"]
+        sim = info["simfile"]
         manifest["status"] = "compiled"
         manifest["input_sha256"] = {n: sha256(directory / n) for n in ("override.par", "simfile.sim", "base_Run_all.par")}
         save()
@@ -177,8 +184,7 @@ def run_experiment(config, registry, output_root, prog=None, datadir=None,
         stdout = run_solver(sim, prog, timeout)
         (directory / "solver_stdout.txt").write_text(stdout, encoding="utf-8")
         manifest["validation"] = validate_run(
-            directory, simulation, outputs, started,
-            {**overrides.keywords(), "TSTEP": simulation.dt, "TSTOP": simulation.duration, "IPRINT": 1},
+            directory, simulation, outputs, started, info["expected_parameters"],
             **config.get("validation", {}))
         run = load_run(directory / "run.csv", config["outputs"]["estimator"])
         run.estimator_view().to_csv(directory / "observable.csv", index=False)

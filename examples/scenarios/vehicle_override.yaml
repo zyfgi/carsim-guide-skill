@@ -1,0 +1,19 @@
+schema_version: 1
+scenario:
+  id: heavier_sprung_mass
+  notes: typed vehicle override (SI in, CarSim mm internally)
+base:
+  name: distributed_ev
+simulation:
+  dt: 0.001
+  duration: 10.0
+road:
+  friction: 0.85
+maneuver:
+  speed_kmh: [[0, 50], [10, 50]]
+  steering_deg: [[0, 0], [10, 0]]
+vehicle:
+  sprung_mass_kg: 1250.0
+  cg_y_m: 0.15
+outputs:
+  channels: [Vx, Ay, AVz, Roll]

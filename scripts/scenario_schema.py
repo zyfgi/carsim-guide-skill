@@ -89,8 +89,8 @@ def validate_scenario(config):
         if name == "Time":
             raise ValueError("Time is written automatically; remove it from outputs.channels")
     _validate_maneuver(config, sim)
-    if not math.isfinite(config["road"]["mu"]):
-        raise ValueError("mu must be finite")
+    if not math.isfinite(config["road"]["friction"]):
+        raise ValueError("friction must be finite")
     threshold = config.get("validation", {}).get("minimum_speed_mps", 0)
     if not math.isfinite(threshold):
         raise ValueError("Movement threshold must be finite")

@@ -1,0 +1,16 @@
+schema_version: 1
+scenario:
+  id: basic_cruise
+  notes: 10 s constant-speed cruise; the minimal generic scenario
+base:
+  name: distributed_ev          # bind this name first: scripts/base_registry.py
+simulation:
+  dt: 0.001
+  duration: 10.0
+road:
+  friction: 0.85
+maneuver:
+  speed_kmh: [[0, 40], [10, 40]]
+  steering_deg: [[0, 0], [10, 0]]
+outputs:
+  channels: [Vx, Ax, Ay, AVz]

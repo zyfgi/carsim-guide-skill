@@ -17,7 +17,7 @@ def scenario():
         "scenario": {"id": "double_lane_change_mu08"},
         "base": {"name": "distributed_ev"},
         "simulation": {"dt": 0.001, "duration": 30.0},
-        "road": {"mu": 0.8},
+        "road": {"friction": 0.8},
         "maneuver": {"speed_kmh": [[0, 50], [30, 50]],
                      "steering_deg": [[0, 0], [5, 20], [6, -20], [30, 0]]},
         "vehicle": {"sprung_mass_kg": 1250.0},

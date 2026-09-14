@@ -1,0 +1,18 @@
+schema_version: 1
+scenario:
+  id: low_mu_braking_zone
+  notes: same cruise on a low-friction strip (MU_ROAD_CARPET override)
+base:
+  name: distributed_ev
+simulation:
+  dt: 0.001
+  duration: 8.0
+road:
+  friction: 0.4
+maneuver:
+  speed_kmh: [[0, 60], [8, 60]]
+  steering_deg: [[0, 0], [8, 0]]
+outputs:
+  channels: [Vx, Ax, AVz, AVy_L1, AVy_R1]
+validation:
+  minimum_speed_mps: 5.0

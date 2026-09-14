@@ -65,7 +65,7 @@ def compile_scenario(config, base_entry, prog, datadir, directory):
     simfile = cb.make_scenario(
         str(directory), str(base_copy), prog, datadir, config=simulation,
         speed_rows=config["maneuver"]["speed_kmh"],
-        steer_rows=config["maneuver"]["steering_deg"], mu=config["road"]["mu"],
+        steer_rows=config["maneuver"]["steering_deg"], mu=config["road"]["friction"],
         vehicle_overrides=vehicle, scalar_overrides=scalar, outputs=outputs,
         product_version=base_entry["carsim_version"])
     expected = dict(vehicle.keywords())

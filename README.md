@@ -10,14 +10,15 @@ A skill for operating CarSim from an AI agent: environment discovery, headless s
 |---|---|
 | First task on a machine | `scripts/setup_paths.py` — discovers and validates install paths; lists base candidates for explicit selection |
 | Run a scenario headless | `scripts/carsim_batch.py` generates `override.par` + `simfile.sim`, calls the solver CLI, and verifies success |
+| Run a scenario from YAML (manifest + validation) | `scripts/scenario_runner.py` — typed scenario YAML, base resolved by name + SHA256, compile-time checks, `run_manifest.json` |
 | Change speed / steering / friction / duration | keyword overrides appended after a GUI-expanded base (CarSim parses last-write-wins) |
 | Set sprung mass, CG and yaw inertia | `VehicleOverrides(sprung_mass_kg=..., cg_y_m=..., izz_kgm2=...)`; SI inputs convert internally |
-| Change any other CarSim keyword | `unsafe_extra_lines=[...]` escape hatch (advanced keywords not yet typed) |
+| Change any other CarSim keyword | confirm it with `scripts/database_tools.py` (read-only search), then `ScalarOverride` / `unsafe_extra_lines` — never guess a keyword |
 | Switch to another vehicle | one-time GUI base expansion, then override everything else |
 | Read results | `read_run_csv()` → SI DataFrame of every registered channel (`units="native"` for raw values; unknown units fail, never guessed) |
 | Close the loop in Simulink | co-simulation via the `vs_sf` S-Function — `examples/simulink_cosim.py` + `scripts/cosim_model.m` (PI yaw-tracking demo, verified end to end) |
 | Torque vectoring / TCS / event tests | per-wheel torque imports (`examples/torque_vectoring.py` — zero-steer yaw verified), open-loop throttle/brake tables, FSAE acceleration/braking patterns |
-| Explore the vehicle database | grep recipes in `references/` — no tooling required |
+| Explore the vehicle database | read-only Python API `scripts/database_tools.py` (datasets, keywords, PARSFILE trees, echo) + grep recipes in `references/` |
 | Understand dataset files | `.par` syntax templates in `references/` |
 | Batch runs / sweeps | `examples/param_sweep.py`, experiment YAML templates |
 
@@ -142,8 +143,12 @@ The two coexist fine: the skill treats a configured MCP server as an optional ex
 SKILL.md                           # entry point: mechanics, override pattern, channels & units, pitfalls
 scripts/setup_paths.py             # one-time install discovery -> cached paths (first run on a machine)
 scripts/carsim_batch.py            # generate / run / read workflow (CLI + library API)
-scripts/scenario_schema.py         # typed config and semantic validation
-scripts/vehicle_registry.py        # explicit base identity and SHA256
+scripts/scenario_schema.py         # typed config + generic scenario YAML validation
+scripts/scenario_runner.py         # generic scenario runner: YAML -> run_manifest.json
+scripts/base_registry.py           # explicit base identity and SHA256 (name binding)
+scripts/parameters.py              # ScalarOverride framework + verified parameter registry
+scripts/database_tools.py          # read-only database exploration API
+scripts/vehicle_registry.py        # deprecated compat wrapper over base_registry
 scripts/experiment_runner.py       # compile / run / validate / manifest (optional research workflow)
 scripts/result_contract.py         # core channel registry: native units, SI factors, categories
 scripts/workflows/                 # optional workflow layer (estimator validation); core never imports it
@@ -153,6 +158,7 @@ schemas/experiment.schema.json     # strict experiment schema v1
 scripts/cosim_model.m              # Simulink co-sim model builder (matlab -batch)
 scripts/tv_cosim.m                 # torque-vectoring co-sim model builder
 scripts/dump_dll_exports.py        # zero-dependency DLL export-symbol enumerator
+examples/scenarios/                # generic scenario YAML examples (cruise, friction, steering, tire forces, overrides)
 examples/param_sweep.py            # runnable batch parameter-sweep example
 examples/simulink_cosim.py         # runnable Simulink+CarSim closed-loop demo
 examples/torque_vectoring.py       # runnable torque-vectoring demo (zero-steer yaw)
@@ -161,7 +167,10 @@ evals/evals.json                   # manual trigger/behavior cases (core workflo
 evals/README.md                    # protocols and versioned executable evidence
 evals/run_checks.py               # pytest + licensed manifest verification → JSON records
 references/python-interface.md     # script walkthrough + unit conversion contract
-references/database-exploration.md # grep-based database exploration (no MCP)
+references/database-exploration.md # database exploration: database_tools API + grep recipes
+references/scenarios.md            # generic scenario YAML contract + scenario_runner
+references/parameters.md           # parameter override tiers + unknown-keyword workflow
+references/run-validation.md       # compile-time + post-run validation semantics
 references/dataset-syntax.md       # .par dataset syntax templates
 references/advanced-controls.md    # open-loop controls, torque imports, table semantics, FSAE notes
 references/simulink-cosim.md       # Simulink co-simulation: verified recipe + pitfalls

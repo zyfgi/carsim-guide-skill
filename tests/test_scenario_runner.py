@@ -46,7 +46,7 @@ def scenario():
         "scenario": {"id": "cruise_50"},
         "base": {"name": "sedan"},
         "simulation": {"dt": 0.005, "duration": 0.1},
-        "road": {"mu": 0.85},
+        "road": {"friction": 0.85},
         "maneuver": {"speed_kmh": [[0, 36], [0.1, 36]],
                      "steering_deg": [[0, 0], [0.1, 0]]},
         "vehicle": {"sprung_mass_kg": 1500},

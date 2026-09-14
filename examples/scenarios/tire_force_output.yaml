@@ -1,0 +1,16 @@
+schema_version: 1
+scenario:
+  id: wheel_forces_output
+  notes: tire forces are ordinary outputs - request them like any channel
+base:
+  name: distributed_ev
+simulation:
+  dt: 0.001
+  duration: 12.0
+road:
+  friction: 0.85
+maneuver:
+  speed_kmh: [[0, 72], [12, 72]]
+  steering_deg: [[0, 0], [4, 14], [7, 14], [7.5, -14], [11, -14], [12, 0]]
+outputs:
+  channels: [Vx, Ay, AVz, Fx_L1, Fx_R1, Fx_L2, Fx_R2, Fy_L1, Fy_R1, Fy_L2, Fy_R2, Fz_L1]
