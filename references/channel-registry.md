@@ -27,8 +27,8 @@ matching is used for reading.
 Tire outputs (Fx/Fy/Fz/Kappa/Alpha) are ordinary CarSim simulation output
 variables: core readers return them like any other channel. Whether they may
 feed an estimator or learning algorithm is workflow-specific — the optional
-research workflows mark them as privileged simulator information (`role` in
-the registry); see
+research workflow owns that policy
+(`PRIVILEGED_PREFIXES` in `scripts/workflows/estimator_validation.py`); see
 [workflows/estimator-validation.md](workflows/estimator-validation.md).
 
 Corners are L1/FL, R1/FR, L2/RL, R2/RR. WRT `ROLL`/`PITCH` map to CSV

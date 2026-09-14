@@ -19,7 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import carsim_batch as cb  # noqa: E402
 import experiment_runner as er  # noqa: E402
 from workflows.estimator_validation import GroundTruthLeakageError, load_run  # noqa: E402
-from scenario_schema import SimulationConfig, VehicleOverrides, load_experiment, validate_experiment  # noqa: E402
+from experiment_runner import load_experiment, validate_experiment  # noqa: E402
+from scenario_schema import SimulationConfig, VehicleOverrides  # noqa: E402
 from sensor_replay import replay, estimator_stream  # noqa: E402
 from validate_run import validate_run  # noqa: E402
 from vehicle_registry import bind_vehicle, resolve_vehicle, product_version  # noqa: E402

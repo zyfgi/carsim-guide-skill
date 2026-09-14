@@ -140,18 +140,16 @@ def test_read_tire_force_allowed(synthetic_csv):
 
 
 def test_core_modules_never_import_workflow_layer():
-    """Dependency direction: workflow -> core -> CarSim. Module-level imports of
-    the core files must not pull sensor replay, the estimator workflow or the
-    experiment runner (function-level lazy imports on workflow-only code paths,
-    e.g. scenario_schema.validate_experiment's SensorConfig, are out of scope:
-    importing carsim_batch never executes them)."""
+    """Dependency direction: workflow -> core -> CarSim. No import (module-level
+    or lazy) in the core files may pull sensor replay, the estimator workflow
+    or the experiment runner."""
     import ast
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts")
     forbidden = ("sensor_replay", "workflows", "experiment_runner", "validate_run",
                  "estimator_validation")
     for name in ("result_contract.py", "carsim_batch.py", "scenario_schema.py"):
         tree = ast.parse(open(os.path.join(root, name), encoding="utf-8").read())
-        for node in tree.body:
+        for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 parts = [a.name for a in node.names]
             elif isinstance(node, ast.ImportFrom):
@@ -160,6 +158,21 @@ def test_core_modules_never_import_workflow_layer():
                 continue
             for mod in parts:
                 assert not any(f in mod for f in forbidden), (name, mod)
+
+
+def test_core_channel_has_no_role():
+    """Gate 0: the core registry describes what a channel IS (units, category,
+    source); privileged markings are workflow policy, not registry metadata."""
+    import result_contract as rc
+    import workflows.estimator_validation as ev
+    assert not hasattr(rc.Channel, "__dataclass_fields__") or \
+        "role" not in rc.Channel.__dataclass_fields__
+    spec = rc.channel("Fx_L1")
+    assert spec.category == "tire" and spec.scale == 1.0
+    assert ev.is_privileged("Fx_L1") and not ev.is_privileged("Vx")
+    with pytest.raises(ev.GroundTruthLeakageError):
+        ev.no_privileged_channels(["Vx", "Kappa_L1"])
+    assert ev.no_privileged_channels(["Vx", "Ay"])
 
 
 def test_read_run_csv_native_units(synthetic_csv):
