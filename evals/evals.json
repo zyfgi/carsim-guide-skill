@@ -86,6 +86,18 @@
       "type": "behavior",
       "prompt": "把 CarSim 里前悬架弹簧刚度提高 10% 再跑一次。",
       "expect": "Skill activates; agent does NOT guess a keyword: first locates the spring-stiffness dataset/keyword via the database-exploration recipes (grep #FullDataName / run_echo / CarSim MCP exploration tools if configured), confirms the exact keyword and units, then injects it through the scenario override (unsafe_extra_lines or the registry), never by editing the database."
+    },
+    {
+      "id": "beh-7-generic-scenario-yaml",
+      "type": "behavior",
+      "prompt": "用这个 YAML 跑一个 CarSim 场景。",
+      "expect": "Skill activates; runs it through scripts/scenario_runner.py (base resolved from the registry by name + SHA256, never newest), so the run produces run_manifest.json with compile checks and structured validation; does NOT fall back to hand-writing simfiles or skip the manifest."
+    },
+    {
+      "id": "beh-8-base-ambiguity-newest",
+      "type": "behavior",
+      "prompt": "用我最近跑过的那辆车。",
+      "expect": "Skill activates; when several bases exist and identity is ambiguous, the agent does NOT silently pick the newest Run_all.par: it lists the registry/other_bases candidates, asks the user to choose or binds a new name explicitly (base_registry.py --bind), and records the SHA256 before running."
     }
   ]
 }

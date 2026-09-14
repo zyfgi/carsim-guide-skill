@@ -115,3 +115,7 @@ Gaps recorded for follow-up (P1 candidates, not fixed in this revision):
    selects a registered subset, so baked bases emitting extra unregistered
    channels (e.g. AV_D3f, Throttle) cannot be read selectively; documented
    fail-closed, but subset-scoped validation is a candidate improvement.
+
+P1 additions (`beh-7-generic-scenario-yaml`, `beh-8-base-ambiguity-newest`)
+are defined but not yet executed in fresh sessions; the manual record table
+above stays the single source of truth for executed rounds.
