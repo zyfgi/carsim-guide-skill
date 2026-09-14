@@ -48,9 +48,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from base_registry import product_version as resolve_version, sha256
+from parameters import check_conflicts, coerce_scalar_overrides
 from result_contract import CHANNEL_REGISTRY, channel
 from scenario_schema import SimulationConfig
-from base_registry import product_version as resolve_version, sha256
 
 logger = logging.getLogger("carsim_batch")
 
@@ -181,7 +182,8 @@ def _dedupe(rows):
 
 def override_par(base_run_all, tstop, speed_rows, steer_rows,
                  outputs=None, mu=0.9, tstep=TSTEP, extra_lines=(),
-                 unsafe_extra_lines=(), vehicle_overrides=None):
+                 unsafe_extra_lines=(), vehicle_overrides=None,
+                 scalar_overrides=()):
     """Build override.par text: base reference + run switches + control tables.
 
     Key switches (see SKILL.md section 3 for the full rationale):
@@ -208,9 +210,11 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
     if extra_lines and unsafe_extra_lines:
         raise ValueError("Use only one extra-lines argument")
     raw_lines = list(unsafe_extra_lines or extra_lines)
+    scalar_overrides = coerce_scalar_overrides(scalar_overrides)
     protected = {"TSTART", "TSTOP", "TSTEP", "IPRINT"}
     if vehicle_overrides:
         protected.update(vehicle_overrides.keywords())
+    check_conflicts(scalar_overrides, protected)
     for line in raw_lines:
         if line.strip() and line.split()[0].upper() in protected:
             raise ValueError("Raw override conflicts with typed configuration: %s" % line)
@@ -240,6 +244,8 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
     lines += ["OPT_DM 0", "OPT_STR_BY_TRQ 0"]
     lines += _table("STEER_SW_TABLE", _dedupe(steer_rows))
     lines += vehicle_overrides.lines() if vehicle_overrides else []
+    for override in scalar_overrides:
+        lines += override.lines()
     lines += raw_lines
     lines += ["WRT_" + {"Roll": "ROLL", "Pitch": "PITCH"}.get(name, name) for name in outputs]
     lines += ["LOG_ENTRY scenario override", "END", ""]
