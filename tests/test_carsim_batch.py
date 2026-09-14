@@ -4,6 +4,7 @@ Run: python -m pytest tests/ -q   (from the skill root)
 Covers the generator formatting, the SI unit contract, and CSV reading
 against a synthetic run.csv — the parts CI can verify without a solver.
 """
+import json
 import logging
 import os
 import sys
@@ -65,6 +66,44 @@ def test_known_unit_categories():
     assert cb._known_unit("Fx_L1") and cb._known_unit("My_Dr_R2")
     assert cb._known_unit("Kappa_L1") and cb._known_unit("AV_Mt_D1_L")
     assert not cb._known_unit("Vx") and not cb._known_unit("Weird_Column")
+
+
+def test_si_scale_never_matches_across_word_boundaries():
+    # exact / underscore-delimited matching only: an "avy" rule must not
+    # silently rescale unrelated names like AVYX or AV_Trans (review round 2)
+    assert cb.si_scale("AVYX") == 1.0
+    assert cb.si_scale("AV_Trans") == 1.0
+    assert cb.si_scale("Vx_R1") == pytest.approx(0.2777778, rel=1e-3)
+
+
+# ------------------------------------------------------- install-path cache
+def test_resolve_paths_precedence_arg_env_then_cache(tmp_path, monkeypatch):
+    cache = tmp_path / "paths.json"
+    cache.write_text(json.dumps({
+        "prog": "C:/cache/Prog", "datadir": "C:/cache/Data",
+        "base_run_all": "C:/cache/Run_all.par"}))
+    monkeypatch.setenv(cb.CONFIG_ENV, str(cache))
+    for var in ("CARSIM_PROG", "CARSIM_DATADIR", "CARSIM_BASE"):
+        monkeypatch.delenv(var, raising=False)
+
+    assert cb.resolve_paths() == ("C:/cache/Prog", "C:/cache/Data",
+                                  "C:/cache/Run_all.par")
+    monkeypatch.setenv("CARSIM_PROG", "C:/env/Prog")
+    assert cb.resolve_paths()[0] == "C:/env/Prog"          # env beats cache
+    assert cb.resolve_paths(prog="C:/arg/Prog")[0] == "C:/arg/Prog"  # arg wins
+    # run_solver only needs prog: with datadir/base not required, the env-var
+    # prog alone satisfies resolution even without a cache
+    monkeypatch.delenv(cb.CONFIG_ENV, raising=False)
+    p, _, _ = cb.resolve_paths(require=("prog",))
+    assert p == "C:/env/Prog"
+
+
+def test_resolve_paths_missing_raises_with_setup_hint(tmp_path, monkeypatch):
+    monkeypatch.setenv(cb.CONFIG_ENV, str(tmp_path / "missing.json"))
+    for var in ("CARSIM_PROG", "CARSIM_DATADIR", "CARSIM_BASE"):
+        monkeypatch.delenv(var, raising=False)
+    with pytest.raises(RuntimeError, match="setup_paths\\.py"):
+        cb.resolve_paths()
 
 
 # ---------------------------------------------------------------- csv reader

@@ -29,18 +29,66 @@ Usage example (straight cruise at 50 km/h for 65 s, then read the CSV):
       --out     "C:/work/demo_straight" ^
       --tstop 65 --speed-profile "0:50,65:50" --run --read
 
+After `python setup_paths.py` has run once on the machine, --prog/--datadir/
+--base can be omitted: they default to environment variables (CARSIM_PROG /
+CARSIM_DATADIR / CARSIM_BASE), then to the cache file
+~/.carsim_guide_paths.json. Only --out is ever required.
+
 Profiles are comma-separated "time:value" pairs, time in s, speed in km/h,
 steering-wheel angle in deg. Omit --speed-profile for a constant 50 km/h.
 """
 import argparse
+import json
 import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 logger = logging.getLogger("carsim_batch")
 
 TSTEP = 0.001  # integration step [s]; IPRINT=1 -> CSV row per step (1 kHz)
+
+# ---------------------------------------------------------------------------
+# Install-path resolution: explicit argument > environment variable > cache
+# written by scripts/setup_paths.py (first-run discovery, one-time per machine).
+CONFIG_ENV = "CARSIM_GUIDE_CONFIG"
+ENV_KEYS = {"prog": "CARSIM_PROG", "datadir": "CARSIM_DATADIR",
+            "base_run_all": "CARSIM_BASE"}
+
+
+def cached_paths():
+    """Read the setup_paths.py cache; returns {} when absent or corrupt."""
+    try:
+        p = Path(os.environ.get(
+            CONFIG_ENV, str(Path.home() / ".carsim_guide_paths.json")))
+        cfg = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return cfg if isinstance(cfg, dict) else {}
+
+
+def resolve_paths(prog=None, datadir=None, base=None,
+                  require=("prog", "datadir", "base_run_all")):
+    """Fill missing install paths and return (prog, datadir, base).
+
+    Precedence per key: explicit argument > env var (CARSIM_PROG /
+    CARSIM_DATADIR / CARSIM_BASE) > ~/.carsim_guide_paths.json (written once
+    by scripts/setup_paths.py). Raises RuntimeError with a setup hint for
+    anything still missing, so callers never fail with a bare TypeError.
+    """
+    given = {"prog": prog, "datadir": datadir, "base_run_all": base}
+    cached = cached_paths()
+    out = {}
+    for key in ("prog", "datadir", "base_run_all"):
+        val = given[key] or os.environ.get(ENV_KEYS[key]) or cached.get(key)
+        if not val and key in require:
+            raise RuntimeError(
+                "%s not set. Pass it explicitly, set %s, or run "
+                "scripts/setup_paths.py once (discovers and caches CarSim "
+                "paths for all later sessions)." % (key, ENV_KEYS[key]))
+        out[key] = val
+    return out["prog"], out["datadir"], out["base_run_all"]
 
 # ---------------------------------------------------------------------------
 # ERD output channels (WRT_<name> keywords in override.par).
@@ -89,12 +137,18 @@ UNRELIABLE_COLS = ("Lat_Veh", "Lat_Targ")  # known-drift artifacts; use Yo/Yaw
 
 
 def si_scale(col):
-    """Return the multiply-to-SI factor for a run.csv column name."""
+    """Return the multiply-to-SI factor for a run.csv column name.
+
+    Matching is exact or underscore-delimited: "Vx" and "Vx_R1" match the "vx"
+    rule, while "AVYX" or "AV_Trans" do not - so unrelated columns are never
+    silently rescaled. Unknown identities stay at 1.0 and read_run_csv warns
+    about them.
+    """
     c = col.lower()
-    if c in ("time",):
+    if c == "time":
         return 1.0
     for prefix, scale in SI_SCALES:
-        if c == prefix or c.startswith(prefix + "_") or c.startswith(prefix):
+        if c == prefix or c.startswith(prefix + "_"):
             return scale
     return 1.0  # forces N, torques N.m, kappa -, motor rpm kept as-is, etc.
 
@@ -202,9 +256,18 @@ def simfile(session_dir, prog, datadir, tstep=TSTEP):
     ])
 
 
-def make_scenario(out_dir, base_run_all, prog, datadir,
-                  tstop, speed_rows, steer_rows, **kw):
-    """Write <out_dir>/{override.par, simfile.sim}. Returns the simfile path."""
+def make_scenario(out_dir, base_run_all=None, prog=None, datadir=None,
+                  tstop=65.0, speed_rows=None, steer_rows=None, **kw):
+    """Write <out_dir>/{override.par, simfile.sim}. Returns the simfile path.
+
+    base_run_all / prog / datadir default to the cached install paths
+    (resolve_paths): env vars, then the setup_paths.py cache.
+    """
+    prog, datadir, base_run_all = resolve_paths(prog, datadir, base_run_all)
+    speed_rows = speed_rows if speed_rows is not None else [(0.0, 50.0),
+                                                            (tstop, 50.0)]
+    steer_rows = steer_rows if steer_rows is not None else [(0.0, 0.0),
+                                                            (tstop, 0.0)]
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "override.par"), "w", newline="\n") as f:
         f.write(override_par(base_run_all, tstop, speed_rows, steer_rows, **kw))
@@ -217,7 +280,7 @@ def make_scenario(out_dir, base_run_all, prog, datadir,
 # ---------------------------------------------------------------------------
 # 2) headless solver call
 # ---------------------------------------------------------------------------
-def run_solver(simfile_path, prog, timeout=600):
+def run_solver(simfile_path, prog=None, timeout=600):
     """Run VS_SolverWrapper_CLI_64.exe -sim <simfile> and verify success.
 
     Uses an argv list (no shell), which sidesteps shell backslash escaping
@@ -226,8 +289,10 @@ def run_solver(simfile_path, prog, timeout=600):
     'Termination at simulation time = <TSTOP>' (the RTIME line is written
     to run_log.txt / run_end.par, not stdout). Raises
     RuntimeError with the output tail otherwise (license problems show up as
-    'Unable to load library' - start the GUI or cslm.exe).
+    'Unable to load library' - start the GUI or cslm.exe). `prog` defaults to
+    the cached install path (resolve_paths).
     """
+    prog, _, _ = resolve_paths(prog, require=("prog",))
     exe = os.path.join(prog, "Programs", "VS_SolverWrapper_CLI_64.exe")
     cmd = [exe, "-sim", simfile_path.replace("\\", "/")]
     proc = subprocess.run(cmd, capture_output=True, text=True,
@@ -298,11 +363,15 @@ def parse_profile(text, default_value, tstop):
 
 def main():
     ap = argparse.ArgumentParser(
-        description="CarSim headless batch runner (override.par pattern)")
-    ap.add_argument("--prog", required=True, help="CarSim *_Prog directory")
-    ap.add_argument("--datadir", required=True, help="CarSim *_Data directory")
-    ap.add_argument("--base", required=True,
-                    help="GUI-expanded base Run_all.par (absolute path)")
+        description="CarSim headless batch runner (override.par pattern). "
+                    "Install paths default to the setup_paths.py cache.")
+    ap.add_argument("--prog", default=None, help="CarSim *_Prog directory "
+                    "(default: cached / CARSIM_PROG)")
+    ap.add_argument("--datadir", default=None, help="CarSim *_Data directory "
+                    "(default: cached / CARSIM_DATADIR)")
+    ap.add_argument("--base", default=None,
+                    help="GUI-expanded base Run_all.par, absolute path "
+                    "(default: cached / CARSIM_BASE)")
     ap.add_argument("--out", required=True, help="scenario output directory")
     ap.add_argument("--tstop", type=float, default=65.0)
     ap.add_argument("--speed-profile", default=None,
@@ -320,22 +389,23 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s %(name)s: %(message)s")
+    prog, datadir, base = resolve_paths(args.prog, args.datadir, args.base)
     logger.debug("prog=%s datadir=%s base=%s out=%s",
-                 args.prog, args.datadir, args.base, args.out)
+                 prog, datadir, base, args.out)
 
     speed_rows = parse_profile(args.speed_profile, 50.0, args.tstop)
     steer_rows = parse_profile(args.steer_profile, 0.0, args.tstop)
 
-    sim = make_scenario(args.out, args.base, args.prog, args.datadir,
+    sim = make_scenario(args.out, base, prog, datadir,
                         args.tstop, speed_rows, steer_rows, mu=args.mu)
     logger.info("wrote %s", sim)
 
     if args.run:
         logger.debug("solver command: %s -sim %s",
-                     os.path.join(args.prog, "Programs",
+                     os.path.join(prog, "Programs",
                                   "VS_SolverWrapper_CLI_64.exe"),
                      sim.replace("\\", "/"))
-        out = run_solver(sim, args.prog, timeout=args.timeout)
+        out = run_solver(sim, prog, timeout=args.timeout)
         for line in out.splitlines():
             if "RTIME" in line or "Termination" in line:
                 logger.info("%s", line.strip())

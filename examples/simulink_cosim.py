@@ -46,14 +46,24 @@ TARGET_DEGS = 0.15 / 0.0174533  # 0.15 rad/s expressed in deg/s
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--prog", required=True, help="CarSim *_Prog directory")
-    ap.add_argument("--datadir", required=True, help="CarSim *_Data directory")
-    ap.add_argument("--base", required=True, help="GUI-expanded Run_all.par")
+    ap.add_argument("--prog", default=None, help="CarSim *_Prog directory "
+                    "(default: setup_paths.py cache)")
+    ap.add_argument("--datadir", default=None, help="CarSim *_Data directory "
+                    "(default: setup_paths.py cache)")
+    ap.add_argument("--base", default=None, help="GUI-expanded Run_all.par "
+                    "(default: setup_paths.py cache)")
     ap.add_argument("--out", required=True, help="work/output directory")
-    ap.add_argument("--matlab", required=True, help="path to matlab.exe")
+    ap.add_argument("--matlab", default=None, help="path to matlab.exe "
+                    "(default: cached by setup_paths.py)")
     ap.add_argument("--tstop", type=float, default=30.0)
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
+    args.prog, args.datadir, args.base = cb.resolve_paths(
+        args.prog, args.datadir, args.base)
+    args.matlab = args.matlab or cb.cached_paths().get("matlab")
+    if not args.matlab:
+        ap.error("--matlab not given and none in the setup_paths.py cache "
+                 "(run setup_paths.py with MATLAB on PATH)")
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(levelname)s %(name)s: %(message)s")
 

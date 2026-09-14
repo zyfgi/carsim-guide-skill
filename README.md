@@ -2,12 +2,13 @@
 
 # CarSim Guide
 
-A skill that teaches an AI agent to operate **CarSim 2024.0** headless — running scenarios, switching vehicles, changing parameters, and reading SI-unit results entirely from the command line. After a one-time setup per vehicle, the default workflow needs no GUI, no database writes, and no MCP server; for controller-in-the-loop work there is also a fully verified **Simulink co-simulation path** (vs_sf S-Function, `matlab -batch`, optional). Every mechanism and pitfall in this skill was verified by actually running it — an 18-check batch suite plus two closed-loop demos (a Simulink PI controller at 0.00% tracking error, and an independent Python iterative calibration at 0.13% that cross-validates it).
+A skill that teaches an AI agent to operate **CarSim 2024.0** headless — running scenarios, switching vehicles, changing parameters, and reading SI-unit results entirely from the command line. After a one-time setup per vehicle, the default workflow needs no GUI, no database writes, and no MCP server; for controller-in-the-loop work there is also a fully verified **Simulink co-simulation path** (vs_sf S-Function, `matlab -batch`, optional). A first-run helper (`scripts/setup_paths.py`) discovers the CarSim install once, caches the paths, and every later session resolves them from that cache — no filesystem exploration again. Every mechanism and pitfall in this skill was verified by actually running it, and the checks ship in the repo: a solver-in-loop functional suite plus unit tests in `tests/`, and a trigger/behavior eval protocol in `evals/`.
 
 ## What it does
 
 | Task | How |
 |---|---|
+| First task on a machine | `scripts/setup_paths.py` — discovers install paths + newest base, caches to `~/.carsim_guide_paths.json`; later sessions resolve paths automatically |
 | Run a scenario headless | `scripts/carsim_batch.py` generates `override.par` + `simfile.sim`, calls the solver CLI, and verifies success |
 | Change speed / steering / friction / duration | keyword overrides appended after a GUI-expanded base (CarSim parses last-write-wins) |
 | Add payloads (mass, CG, inertia, tire radius) | `extra_lines=["M_SU 1254.0", "Y_CG_SU 150.0", …]` |
@@ -48,6 +49,9 @@ Install the carsim-guide agent skill for me:
    and extract it to the same target.
 3. Verify SKILL.md exists in the installed carsim-guide folder and show me
    its name/description to confirm the install.
+4. If CarSim is installed on this machine, run
+   `python scripts/setup_paths.py` once (from the installed folder) to
+   discover and cache the CarSim install paths for all future sessions.
 ```
 
 Using an agent without skill support? Add one line to your `AGENTS.md` / rules file: `For any CarSim task, read SKILL.md in carsim-guide-skill first and follow it.`
@@ -75,6 +79,8 @@ After installation, just mention the task in plain language:
 
 The skill auto-triggers on CarSim-related work; `SKILL.md` is the entry point your agent follows.
 
+**First CarSim task on a machine**: the agent runs `scripts/setup_paths.py` once (SKILL.md §0, step 0) — about one second of scanning, then the install paths live in `~/.carsim_guide_paths.json` and every later session resolves them from the cache without touching the filesystem.
+
 ## Requirements
 
 - CarSim 2024.0 (Windows x64) with a valid license — GUI open or `cslm.exe` running
@@ -99,6 +105,7 @@ The two coexist fine: the skill treats a configured MCP server as an optional ex
 
 ```
 SKILL.md                           # entry point: mechanics, override pattern, channels & units, pitfalls
+scripts/setup_paths.py             # one-time install discovery -> cached paths (first run on a machine)
 scripts/carsim_batch.py            # generate / run / read workflow (CLI + library API)
 scripts/cosim_model.m              # Simulink co-sim model builder (matlab -batch)
 scripts/tv_cosim.m                 # torque-vectoring co-sim model builder
@@ -106,19 +113,21 @@ scripts/dump_dll_exports.py        # zero-dependency DLL export-symbol enumerato
 examples/param_sweep.py            # runnable batch parameter-sweep example
 examples/simulink_cosim.py         # runnable Simulink+CarSim closed-loop demo
 examples/torque_vectoring.py       # runnable torque-vectoring demo (zero-steer yaw)
-evals/evals.json                   # trigger/behavior tests (5 positive, 2 negative, 1 behavior)
+tests/                             # unit tests (CI) + solver-in-loop functional checks (auto-skip without CarSim)
+evals/evals.json                   # trigger/behavior evals (5 positive, 2 negative, 2 behavior)
+evals/README.md                    # how to run the evals and record results
 references/python-interface.md     # script walkthrough + unit conversion contract
 references/database-exploration.md # grep-based database exploration (no MCP)
 references/dataset-syntax.md       # .par dataset syntax templates
 references/advanced-controls.md    # open-loop controls, torque imports, table semantics, FSAE notes
 references/simulink-cosim.md       # Simulink co-simulation: verified recipe + pitfalls
 references/vs-c-api.md             # VS C API stepping fallback (prototype)
-.github/workflows/ci.yml           # frontmatter / syntax / size checks on push
+.github/workflows/ci.yml           # frontmatter / syntax / size / eval-structure checks on push
 ```
 
 ## Disclaimer
 
-Field-tested against CarSim 2024.0 on Windows x64 with an 18-check automated suite; behavior may vary with other versions or setups. Test in your own environment before relying on it for critical work.
+Field-tested against CarSim 2024.0 on Windows x64; the verification assets ship in the repo (`tests/` — unit tests run anywhere, functional checks run wherever CarSim + a license are present and skip otherwise; `evals/README.md` — the trigger/behavior protocol). Behavior may vary with other versions or setups. Test in your own environment before relying on it for critical work.
 
 ## License
 

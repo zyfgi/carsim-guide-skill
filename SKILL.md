@@ -1,17 +1,17 @@
 ---
 name: carsim-guide
-description: Run and control CarSim 2024.0 headless from scripts or AI agents - generate scenarios (speed / steering / friction / payloads), drive vehicles (open-loop throttle/brake, per-wheel torque imports for torque vectoring and TCS), co-simulate with Simulink via the vs_sf S-Function, and read SI-unit results. No GUI after a one-time base setup; no CarSim MCP required; every mechanism field-tested. Use whenever a task involves CarSim, the VS solver, carsim_64.dll, simfile.sim, Run_all.par, override.par, ERD/CSV results, vehicle/procedure/road datasets, Simulink+CarSim co-simulation, or FSAE-style event testing (acceleration, braking, torque vectoring) - even if the runtime mechanics are never mentioned.
+description: Run and control CarSim 2024.0 headless from scripts or agents - generate scenarios (speed/steering/friction/payloads), drive with open-loop inputs or per-wheel torque (torque vectoring, TCS), co-simulate with Simulink, and read SI-unit results. Field-tested; no GUI after a one-time base setup, no MCP required. Use for ANY CarSim task - headless/batch runs, VS solver CLI, override.par/simfile workflows, vehicle or dataset changes, CarSim-Simulink co-simulation, FSAE-style events (acceleration, braking) - but not for generic CSV/pandas work or other simulators.
 ---
 
 # CarSim 2024.0 Runtime Mechanics & Operation Guide (field-verified)
 
-Updated 2026-09-14. Everything marked "verified" ran for real. Paths are placeholders — resolve on the target machine.
+Updated 2026-09-14. Everything marked "verified" ran for real — the checks ship in this repo (`tests/` unit + solver-in-loop suites, `evals/` trigger protocol). Paths are placeholders — `scripts/setup_paths.py` resolves them per machine.
 
 **Where to look first** (supporting files load on demand — open only what the task needs):
 
 | Task | Use |
 |---|---|
-| First run on a fresh machine | §0 below + `scripts/carsim_batch.py` |
+| First task on a machine (or CarSim moved) | `scripts/setup_paths.py` — one-time discovery, caches install paths (§1) |
 | Build/modify scenarios (tables, params, payloads) | §3 + §5; script API in §4 |
 | Extend or debug the Python workflow | `references/python-interface.md` |
 | Open-loop throttle/brake, torque imports, table replace/append rules | `references/advanced-controls.md` |
@@ -21,38 +21,41 @@ Updated 2026-09-14. Everything marked "verified" ran for real. Paths are placeho
 | Runnable demos (sweep, Simulink, torque vectoring) | `examples/` |
 | Hard real-time stepping (rare) | `references/vs-c-api.md` |
 | DLL export symbols | `scripts/dump_dll_exports.py` |
-| Skill trigger tests | `evals/evals.json` |
+| Reproduce the verification / trigger evals | `tests/` + `evals/` (protocol in `evals/README.md`) |
 
 ---
 
 ## 0. Quick start (fresh machine → first successful run)
 
-1. **Locate the install**: `<PROG> = …\CarSim2024.0_Prog`, `<DATADIR> = …\CarSim2024.0_Data` (siblings).
-2. **License**: keep the CarSim GUI open, or start `<PROG>\Programs\cslm.exe`.
-3. **Get a base (once per vehicle — the ONLY GUI step)**: open a Run Control → **Run Math Model** → take `Results\Run_<uuid>\Run_all.par`.
-4. **First run** (65 s straight cruise at 50 km/h):
+0. **Discover & cache the install** (once per machine): `python scripts/setup_paths.py` — finds PROG / DATADIR / the newest GUI-expanded base, verifies CLI + 64-bit DLL, caches to `~/.carsim_guide_paths.json` (~1 s; `--json` prints a compact summary for later sessions).
+1. **License**: keep the CarSim GUI open, or start `<PROG>\Programs\cslm.exe`.
+2. **Get a base (once per vehicle — the ONLY GUI step)**: open a Run Control → **Run Math Model** → take `Results\Run_<uuid>\Run_all.par` (setup_paths.py auto-picks the newest).
+3. **First run** (65 s straight cruise at 50 km/h) — no path arguments needed:
    ```
-   python scripts/carsim_batch.py --prog <PROG> --datadir <DATADIR> \
-       --base <Run_all.par> --out <scenario dir> \
+   python scripts/carsim_batch.py --out <scenario dir> \
        --tstop 65 --speed-profile "0:50,65:50" --run --read
    ```
-5. **Acceptance**: stdout ends with `Termination at simulation time = 65 s`; `<out>/run.csv` exists (1 kHz CSV).
+4. **Acceptance**: stdout ends with `Termination at simulation time = 65 s`; `<out>/run.csv` exists (1 kHz CSV).
 
 Daily runs end here — no GUI, no database writes, no Simulink, no C API.
 
 ---
 
-## 1. Key paths (placeholders — resolve on the target machine)
+## 1. Install paths: discover once, never explore again
 
-| Item | Path / value |
+`scripts/setup_paths.py` caches machine paths to `~/.carsim_guide_paths.json` — outside the skill, so nothing machine-specific can leak into a repo:
+
+| Cached key | Item / typical value |
 |---|---|
-| Program root PROG | `<CarSim install root>\CarSim2024.0_Prog` |
-| Database DATADIR (read-only) | `<CarSim install root>\CarSim2024.0_Data` |
-| CLI solver wrapper | `<PROG>\Programs\VS_SolverWrapper_CLI_64.exe` |
-| Solver DLL (64-bit) | `<PROG>\Programs\solvers\carsim_64.dll` (full VS C API, 300+ symbols) |
-| License | GUI running, or `Programs\cslm.exe` headless |
-| Manuals | `Help\Memos\*.pdf`, `Help\Manuals\VS_SDK.pdf` |
-| Python | bring your own 3.x with pandas; CarSim's bundled Python (no pip) is unused |
+| `prog` | `<install root>\CarSim2024.0_Prog` |
+| `datadir` | sibling `<install root>\CarSim2024.0_Data` (read-only) |
+| `cli_solver` | `<PROG>\Programs\VS_SolverWrapper_CLI_64.exe` |
+| `solver_dll` | `<PROG>\Programs\solvers\carsim_64.dll` (64-bit; full VS C API, 300+ symbols) |
+| `license_manager` | GUI running, or `<PROG>\Programs\cslm.exe` headless |
+| `base_run_all` | newest `<DATADIR>\Results\Run_*\Run_all.par` (+ `other_bases` list) |
+| `matlab` | optional — Simulink co-sim examples |
+
+**Flow**: first task on a machine → run `scripts/setup_paths.py`. Every later session resolves paths automatically (explicit argument > env `CARSIM_PROG`/`CARSIM_DATADIR`/`CARSIM_BASE` > cache) — all scripts and examples just work, and `python scripts/setup_paths.py --json` re-prints the cached paths in one line. **Never grep the filesystem for CarSim paths again**: if a run fails on paths, re-run setup (it revalidates the cache), fix one key with `--set prog=…`, or rescan with `--refresh` / reset with `--forget`.
 
 **Pitfall**: the official `Programs\Python\vs.py` / `_vs` extension **segfaults** on import — never use it.
 
@@ -96,16 +99,17 @@ LOG_ENTRY / END
 
 ---
 
-## 4. Python tooling (scripts/carsim_batch.py)
+## 4. Python tooling (scripts/)
 
 | API | Purpose |
 |---|---|
-| `make_scenario(out_dir, base_run_all, prog, datadir, tstop, speed_rows, steer_rows, mu=0.9, extra_lines=())` | writes override.par + simfile.sim, returns simfile path; `extra_lines` injects parameter overrides (static payloads) |
-| `run_solver(simfile_path, prog, timeout=600)` | subprocess CLI call (argv list + forward slashes), success-judged, raises with output tail |
+| `scripts/setup_paths.py` | one-time install discovery → `~/.carsim_guide_paths.json`; later calls (`--json`) re-print it in one line |
+| `make_scenario(out_dir, base_run_all=None, prog=None, datadir=None, tstop=65, speed_rows=None, steer_rows=None, mu=0.9, extra_lines=())` | writes override.par + simfile.sim, returns simfile path; path arguments default to the §1 cache; `extra_lines` injects parameter overrides (static payloads) |
+| `run_solver(simfile_path, prog=None, timeout=600)` | subprocess CLI call (argv list + forward slashes), success-judged, raises with output tail; `prog` defaults to the cache |
 | `read_run_csv(path, columns=None)` | pandas → **SI-unit** DataFrame (auto-drops unreliable columns, respects requested order) |
-| `si_scale(col)` / `summarize(df)` / constants | column→SI factor; stats; `OUTPUTS_*`, `TRUTH_ONLY_PREFIXES`, `UNRELIABLE_COLS` |
+| `si_scale(col)` / `summarize(df)` / constants | column→SI factor (exact/underscore-delimited match); stats; `OUTPUTS_*`, `TRUTH_ONLY_PREFIXES`, `UNRELIABLE_COLS` |
 
-CLI: `--prog --datadir --base --out --tstop --speed-profile "t:v,…" --steer-profile "t:v,…" --mu --run --read --verbose`. Runnable demos: `examples/param_sweep.py` (batch sweep), `examples/simulink_cosim.py`, `examples/torque_vectoring.py`.
+CLI: `--out --tstop --speed-profile "t:v,…" --steer-profile "t:v,…" --mu --run --read --verbose` (`--prog --datadir --base` optional — §1 cache defaults). Runnable demos: `examples/param_sweep.py` (batch sweep), `examples/simulink_cosim.py`, `examples/torque_vectoring.py` (all resolve paths from the cache too; Simulink ones also take `--matlab`, cached as `matlab`).
 
 ---
 

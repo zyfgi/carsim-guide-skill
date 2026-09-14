@@ -37,7 +37,8 @@ jobs:
               "frontmatter description missing or too short"
           n_lines = text.count("\n") + 1
           assert n_lines < 500, f"SKILL.md is {n_lines} lines (limit 500)"
-          for f in ("scripts/carsim_batch.py", "scripts/dump_dll_exports.py",
+          for f in ("scripts/carsim_batch.py", "scripts/setup_paths.py",
+                    "scripts/dump_dll_exports.py",
                     "examples/param_sweep.py", "examples/simulink_cosim.py",
                     "examples/torque_vectoring.py"):
               ast.parse(open(f, encoding="utf-8").read())

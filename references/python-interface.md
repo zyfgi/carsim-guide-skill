@@ -2,6 +2,8 @@
 
 This document walks through the design and evidence behind `scripts/carsim_batch.py`. All conclusions are field-verified (multi-scenario batch runs succeeded, RTIME≈0.05, roughly 17× real time; performance varies by machine).
 
+**Install paths**: run `scripts/setup_paths.py` once per machine — it discovers the CarSim install, verifies the CLI + 64-bit DLL, and caches everything (incl. the newest base Run_all.par and MATLAB) to `~/.carsim_guide_paths.json`. Every function and CLI flag below then resolves paths automatically: explicit argument > env var (`CARSIM_PROG` / `CARSIM_DATADIR` / `CARSIM_BASE`) > that cache.
+
 ## 0. Workflow overview
 
 ```
@@ -85,34 +87,38 @@ Sign conventions (verified): left turn → AVz > 0; My_Dr positive = drive, nega
 
 ## 5. Usage examples
 
-Command line (straight cruise, run then read back):
+Command line (straight cruise, run then read back). After `setup_paths.py` has run once, the three path flags can be omitted entirely:
 
 ```
 python scripts/carsim_batch.py ^
     --prog "C:/CarSim/CarSim2024.0_Prog" --datadir "C:/CarSim/CarSim2024.0_Data" ^
     --base "C:/work/base/Run_all.par" --out "C:/work/S0_straight" ^
     --tstop 65 --speed-profile "0:50,65:50" --run --read
+
+:: cached-paths equivalent - only --out is required:
+python scripts/carsim_batch.py --out "C:/work/S0_straight" ^
+    --tstop 65 --speed-profile "0:50,65:50" --run --read
 ```
 
 (`^` is the Windows cmd line continuation; use `\` in bash.)
 
-As a library (custom lane-change scenario):
+As a library (custom lane-change scenario) — path arguments are optional once the cache exists:
 
 ```python
 from carsim_batch import make_scenario, run_solver, read_run_csv
 
 sim = make_scenario(
     out_dir="C:/work/lane_change",
-    base_run_all="C:/work/base/Run_all.par",
-    prog="C:/CarSim/CarSim2024.0_Prog",
-    datadir="C:/CarSim/CarSim2024.0_Data",
+    base_run_all="C:/work/base/Run_all.par",     # optional: newest cached base
+    prog="C:/CarSim/CarSim2024.0_Prog",          # optional: cached
+    datadir="C:/CarSim/CarSim2024.0_Data",       # optional: cached
     tstop=300.0,
     speed_rows=[(0, 43), (30, 65), (60, 72), (90, 40), (300, 50)],   # s, km/h
     steer_rows=[(0, 0), (95, 14), (105, 14), (110, -14), (120, -14), (300, 0)],  # s, deg
     mu=0.9,
     extra_lines=["M_SU 1254.0"],  # static payload override (verified exact)
 )
-run_solver(sim, prog="C:/CarSim/CarSim2024.0_Prog", timeout=600)
+run_solver(sim, timeout=600)  # prog defaults to the cached install
 df = read_run_csv("C:/work/lane_change/run.csv", columns=["Time", "Vx", "Ay", "AVz"])
 ```
 

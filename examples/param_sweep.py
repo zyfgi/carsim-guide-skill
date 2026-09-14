@@ -28,9 +28,12 @@ logger = logging.getLogger("param_sweep")
 
 def main():
     ap = argparse.ArgumentParser(description="friction/payload sweep demo")
-    ap.add_argument("--prog", required=True)
-    ap.add_argument("--datadir", required=True)
-    ap.add_argument("--base", required=True, help="GUI-expanded Run_all.par")
+    ap.add_argument("--prog", default=None,
+                    help="CarSim *_Prog dir (default: setup_paths.py cache)")
+    ap.add_argument("--datadir", default=None,
+                    help="CarSim *_Data dir (default: setup_paths.py cache)")
+    ap.add_argument("--base", default=None, help="GUI-expanded Run_all.par "
+                    "(default: setup_paths.py cache)")
     ap.add_argument("--out", required=True, help="sweep root directory")
     ap.add_argument("--mus", default="0.4,0.6,0.9",
                     help="comma-separated friction values (default 0.4,0.6,0.9)")
@@ -40,6 +43,8 @@ def main():
     ap.add_argument("--timeout", type=int, default=300)
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
+    args.prog, args.datadir, args.base = cb.resolve_paths(
+        args.prog, args.datadir, args.base)
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(levelname)s %(name)s: %(message)s")
