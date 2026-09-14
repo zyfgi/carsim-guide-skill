@@ -90,10 +90,17 @@ listed as TODO at the end and were deliberately not started.
   generic `ParameterOverride` system beyond `VehicleOverrides`,
   `database_tools.py` exploration helpers, `RunValidationResult` with
   fatal/warning/info levels.
-- P2: module split (`carsim_results.py`/`scenario.py`/`validation.py`),
+- P1 (from the 2026-09-14/15 behavior eval round, see evals/README.md):
+  make the research workflow discoverable for isolation-style data-generation
+  requests (beh-3 failed — all channels were output with blinding deferred to
+  a manual step); subset-scoped CSV validation so registered columns stay
+  readable from bases that emit extra unregistered channels; surface the
+  §8 "MCP explores, scripts run" routing earlier in SKILL.md.
+- P2: module split (`carsim_results.py`/`scenario.py`/`validation.py`,
+  including scenario_schema's experiment-validation half),
   unified exception taxonomy (`CarSimNotFoundError`…`CoSimulationError`),
   generic-scenario examples (`steering_maneuver.yaml`, `wheel_torque.yaml`),
-  moving workflow scripts under `scripts/workflows/`.
+  moving the remaining workflow scripts under `scripts/workflows/`.
 - P3: broader keyword/dataset discovery, more version compatibility, more
   control interfaces.
 
