@@ -50,7 +50,7 @@ import pandas as pd
 
 from result_contract import CHANNEL_REGISTRY, channel
 from scenario_schema import SimulationConfig
-from vehicle_registry import product_version as resolve_version, sha256
+from base_registry import product_version as resolve_version, sha256
 
 logger = logging.getLogger("carsim_batch")
 

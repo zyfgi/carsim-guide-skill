@@ -31,7 +31,7 @@ import sys
 import time
 from pathlib import Path
 
-from vehicle_registry import sha256
+from base_registry import sha256
 
 CONFIG_ENV = "CARSIM_GUIDE_CONFIG"
 CONFIG_DEFAULT = Path.home() / ".carsim_guide_paths.json"

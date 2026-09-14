@@ -23,7 +23,7 @@ from result_contract import CHANNEL_REGISTRY, channel
 from scenario_schema import SimulationConfig, VehicleOverrides
 from sensor_replay import replay
 from validate_run import validate_run
-from vehicle_registry import resolve_vehicle, sha256
+from base_registry import resolve_base, sha256
 from workflows.estimator_validation import load_run, no_privileged_channels
 
 
@@ -136,7 +136,7 @@ def run_experiment(config, registry, output_root, prog=None, datadir=None,
     for key, path in runtime.items():
         if not (path.is_dir() if key in ("prog", "datadir") else path.is_file()):
             raise ValueError("Invalid runtime %s: %s" % (key, path))
-    vehicle = resolve_vehicle(registry, config["vehicle"]["base"], prog)
+    vehicle = resolve_base(registry, config["vehicle"]["base"], prog)
     directory = Path(output_root).resolve() / config["experiment"]["id"]
     directory.mkdir(parents=True, exist_ok=False)  # refuse reuse, including dry runs
     manifest = {"manifest_version": 1, "created_utc": utc_now(), "status": "preparing",

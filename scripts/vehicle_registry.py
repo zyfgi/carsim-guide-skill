@@ -1,55 +1,26 @@
-"""Explicit vehicle bindings; no newest-file fallback. Registry paths are local."""
+"""Deprecated location: explicit base bindings live in base_registry.py.
+
+This wrapper keeps the old vehicle-registry API working. Existing registry
+files with a legacy top-level "vehicles" section keep resolving; new bindings
+are written in the "bases" shape.
+"""
 import argparse
-import hashlib
-import json
-import re
-from pathlib import Path
 
-
-def sha256(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def product_version(prog, explicit=None):
-    match = re.search(r"CarSim[ _-]?(\d{4}\.\d+)", str(prog), re.I)
-    discovered = match.group(1) if match else None
-    if explicit is not None and not re.fullmatch(r"\d{4}\.\d+", explicit):
-        raise ValueError("CarSim version must look like 2024.0")
-    if explicit and discovered and explicit != discovered:
-        raise ValueError("Pinned CarSim version disagrees with install directory")
-    if not (explicit or discovered):
-        raise ValueError("Cannot infer CarSim version; supply product_version explicitly")
-    return explicit or discovered
+from base_registry import bind_base, product_version, resolve_base, sha256  # noqa: F401
 
 
 def bind_vehicle(registry_path, name, base, version, run_control, powertrain):
-    path = Path(registry_path)
-    data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"vehicles": {}}
-    if name in data["vehicles"]:
-        raise ValueError("Vehicle already bound; use a new name for a new base revision")
-    base = Path(base).resolve(strict=True)
-    product_version("", version)
-    data["vehicles"][name] = {"base_run_all": str(base), "base_sha256": sha256(base),
-                               "carsim_version": version, "run_control": run_control,
-                               "powertrain": powertrain}
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    """Deprecated: use base_registry.bind_base(..., vehicle=powertrain)."""
+    bind_base(registry_path, name, base, version,
+              run_control=run_control, vehicle=powertrain)
 
 
-def resolve_vehicle(registry_path, name, prog):
-    data = json.loads(Path(registry_path).read_text(encoding="utf-8"))
-    entry = dict(data["vehicles"][name])
-    base = Path(entry["base_run_all"])
-    if not base.is_absolute():
-        base = Path(registry_path).resolve().parent / base
-    if sha256(base) != entry["base_sha256"]:
-        raise ValueError("Base SHA256 mismatch for vehicle %s" % name)
-    product_version(prog, entry["carsim_version"])
-    entry["base_run_all"] = str(base.resolve())
+def resolve_vehicle(registry_path, name, prog=None):
+    """Deprecated: use base_registry.resolve_base(). Returns the base record;
+    the legacy "powertrain" field name is mirrored from "vehicle" when present."""
+    entry = resolve_base(registry_path, name, prog)
+    if "powertrain" not in entry and "vehicle" in entry:
+        entry["powertrain"] = entry["vehicle"]
     return entry
 
 
@@ -58,7 +29,8 @@ def main():
     for flag in ("registry", "name", "base", "version", "run-control", "powertrain"):
         parser.add_argument("--" + flag, required=True)
     args = parser.parse_args()
-    bind_vehicle(args.registry, args.name, args.base, args.version, args.run_control, args.powertrain)
+    bind_vehicle(args.registry, args.name, args.base, args.version,
+                 args.run_control, args.powertrain)
 
 
 if __name__ == "__main__":
