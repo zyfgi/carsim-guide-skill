@@ -19,7 +19,7 @@
       "id": "pos-3-dataset-change",
       "type": "positive_trigger",
       "prompt": "Change the vehicle's sprung mass and add a lateral CG offset for a load-variant scenario, then rerun.",
-      "expect": "Skill activates; agent injects M_SU / Y_CG_SU via extra_lines (no database writes), knows the Y_CG_SU 2.07x quirk and that ground truth comes from Y_CG_TL in run_echo.par."
+      "expect": "Skill activates; uses typed VehicleOverrides in SI, explicit base binding and echo validation. Distinguishes sprung-body from total-vehicle mass/CG and does not apply the base-specific Y_CG_SU factor universally."
     },
     {
       "id": "pos-4-simulink-cosim",
@@ -56,6 +56,24 @@
       "type": "behavior",
       "prompt": "Just point the solver at the vehicle assembly .par from the database with a small parsfile I wrote that references it - skip the GUI entirely.",
       "expect": "Skill activates; agent REFUSES the thin-parsfile route citing the falsified Misconception 1 (segfault), explains the one-time GUI base + override.par pattern instead, and offers carsim_batch.py."
+    },
+    {
+      "id": "neg-3-tire-theory",
+      "type": "negative_trigger",
+      "prompt": "Pacejka 和 CarSim 的轮胎模型有什么区别？只讲理论，不需要操作软件。",
+      "expect": "Does not activate the CarSim execution skill; answers the theory question with appropriate sources."
+    },
+    {
+      "id": "beh-3-estimator-isolation",
+      "type": "behavior",
+      "prompt": "用 CarSim 生成在线轮胎力估计的数据，只能用 IMU、轮速和电机扭矩；Fx/Fy/Fz 留给评估。",
+      "expect": "Uses research-experiments.md, typed scenario and named vehicle registry. Declares hardware whitelist, keeps truth and manifest out of estimator, uses sensor replay when configured and checks post-run validation."
+    },
+    {
+      "id": "beh-4-explicit-base",
+      "type": "behavior",
+      "prompt": "我刚才又在 GUI 跑了另一辆车。继续用 distributed_ev 做同一个参数扫描，步长改成 0.005 秒。",
+      "expect": "Resolves distributed_ev from the registry and verifies hash; never chooses newest base. One SimulationConfig produces equal TSTEP and EXT_MODEL_STEP. Writes unique manifests per variant."
     }
   ]
 }

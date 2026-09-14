@@ -5,7 +5,6 @@ Covers the generator formatting, the SI unit contract, and CSV reading
 against a synthetic run.csv — the parts CI can verify without a solver.
 """
 import json
-import logging
 import os
 import sys
 
@@ -20,8 +19,8 @@ import carsim_batch as cb  # noqa: E402
 def test_table_block_format():
     lines = cb._table("STEER_SW_TABLE", [(0.0, 0.0), (5.0, 12.5)])
     assert lines[0] == "STEER_SW_TABLE LINEAR_FLAT"
-    assert lines[1] == "0.000000, 0.000000"
-    assert lines[2] == "5.000000, 12.500000"
+    assert lines[1] == "0, 0"
+    assert lines[2] == "5, 12.5"
     assert lines[-1] == "ENDTABLE"
 
 
@@ -32,9 +31,9 @@ def test_dedupe_removes_repeated_x():
 def test_override_par_contains_core_switches():
     txt = cb.override_par("C:/b/Run_all.par", 65.0,
                           [(0, 50), (65, 50)], [(0, 0), (65, 0)],
-                          extra_lines=["M_SU 1254.0"])
+                          unsafe_extra_lines=["M_SU 1254.0"])
     for needle in ("PARSFILE C:/b/Run_all.par", "OPT_ERROR_DIALOG 0",
-                   "OPT_VS_FILETYPE 4", "TSTEP 0.0010000",
+                   "OPT_VS_FILETYPE 4", "TSTEP 0.001",
                    "SPEED_TARGET_TABLE LINEAR_FLAT", "STEER_SW_TABLE LINEAR_FLAT",
                    "MU_ROAD_CARPET 2D_STEP", "M_SU 1254.0",
                    "WRT_Vx", "END"):
@@ -44,9 +43,12 @@ def test_override_par_contains_core_switches():
 
 
 def test_simfile_pins_64bit_and_ports():
-    txt = cb.simfile("C:/work/demo", "C:/CarSim/ProG", "C:/CarSim/Data")
+    txt = cb.simfile("C:/work/demo", "C:/CarSim/ProG", "C:/CarSim/Data", product_version="2024.0")
     assert "carsim_64.dll" in txt and "carsim_32" not in txt
     assert "PORTS_IMP 0" in txt and "PORTS_EXP 0" in txt
+    for line in txt.splitlines():
+        if line.startswith(("PROGDIR ", "DATADIR ")):
+            assert line.endswith(("/", "\\"))
     assert txt.startswith("SIMFILE") and "\nEND" in txt
 
 
@@ -65,7 +67,7 @@ def test_si_scale(col, factor):
 def test_known_unit_categories():
     assert cb._known_unit("Fx_L1") and cb._known_unit("My_Dr_R2")
     assert cb._known_unit("Kappa_L1") and cb._known_unit("AV_Mt_D1_L")
-    assert not cb._known_unit("Vx") and not cb._known_unit("Weird_Column")
+    assert cb._known_unit("Vx") and not cb._known_unit("Weird_Column")
 
 
 def test_si_scale_never_matches_across_word_boundaries():
@@ -79,15 +81,17 @@ def test_si_scale_never_matches_across_word_boundaries():
 # ------------------------------------------------------- install-path cache
 def test_resolve_paths_precedence_arg_env_then_cache(tmp_path, monkeypatch):
     cache = tmp_path / "paths.json"
+    base = tmp_path / "Run_all.par"
+    base.write_text("PARSFILE\nEND\n")
     cache.write_text(json.dumps({
         "prog": "C:/cache/Prog", "datadir": "C:/cache/Data",
-        "base_run_all": "C:/cache/Run_all.par"}))
+        "base_run_all": str(base), "base_selection": "explicit", "base_sha256": cb.sha256(base)}))
     monkeypatch.setenv(cb.CONFIG_ENV, str(cache))
     for var in ("CARSIM_PROG", "CARSIM_DATADIR", "CARSIM_BASE"):
         monkeypatch.delenv(var, raising=False)
 
     assert cb.resolve_paths() == ("C:/cache/Prog", "C:/cache/Data",
-                                  "C:/cache/Run_all.par")
+                                  str(base))
     monkeypatch.setenv("CARSIM_PROG", "C:/env/Prog")
     assert cb.resolve_paths()[0] == "C:/env/Prog"          # env beats cache
     assert cb.resolve_paths(prog="C:/arg/Prog")[0] == "C:/arg/Prog"  # arg wins
@@ -111,9 +115,9 @@ def test_resolve_paths_missing_raises_with_setup_hint(tmp_path, monkeypatch):
 def synthetic_csv(tmp_path):
     p = tmp_path / "run.csv"
     p.write_text(
-        "Time,Vx,Ax,AVz,Fz_L1,Lat_Veh,Madeup_Channel\n"
-        "0.0,50.0,0.10,5.0,3200.0,1.0,7.0\n"
-        "1.0,50.0,0.10,5.0,3200.0,1.0,7.0\n", encoding="utf-8")
+        "Time,Vx,Ax,AVz,Fz_L1,Lat_Veh,AV_Mt_D1_L\n"
+        "0.0,50.0,0.10,5.0,3200.0,1.0,60.0\n"
+        "1.0,50.0,0.10,5.0,3200.0,1.0,60.0\n", encoding="utf-8")
     return str(p)
 
 
@@ -122,7 +126,8 @@ def test_read_run_csv_converts_to_si(synthetic_csv):
     assert df.Vx.iloc[0] == pytest.approx(50 * 0.2777778, rel=1e-3)
     assert df.Ax.iloc[0] == pytest.approx(0.981, rel=1e-3)
     assert df.AVz.iloc[0] == pytest.approx(5 * 0.0174533, rel=1e-3)
-    assert df.Fz_L1.iloc[0] == pytest.approx(3200.0)  # already SI
+    assert "Fz_L1" not in df  # default reader cannot leak truth
+    assert cb.read_run_csv(synthetic_csv, allow_truth=True).Fz_L1.iloc[0] == 3200
 
 
 def test_read_run_csv_drops_unreliable(synthetic_csv):
@@ -130,12 +135,10 @@ def test_read_run_csv_drops_unreliable(synthetic_csv):
     assert "Lat_Veh" not in df.columns
 
 
-def test_read_run_csv_respects_order_and_warns_unknown(synthetic_csv, caplog):
-    with caplog.at_level(logging.WARNING):
-        df = cb.read_run_csv(synthetic_csv, columns=["Time", "Vx", "AVz"])
+def test_read_run_csv_respects_order_and_rejects_unknown(synthetic_csv, tmp_path):
+    df = cb.read_run_csv(synthetic_csv, columns=["Time", "Vx", "AVz"])
     assert list(df.columns) == ["Time", "Vx", "AVz"]
-    assert not any("Madeup_Channel" in r.getMessage() for r in caplog.records)
-    # unknown column warning fires when it IS loaded
-    with caplog.at_level(logging.WARNING):
-        cb.read_run_csv(synthetic_csv)
-    assert any("Madeup_Channel" in r.getMessage() for r in caplog.records)
+    unknown = tmp_path / "unknown.csv"
+    unknown.write_text("Time,Madeup_Channel\n0,7\n")
+    with pytest.raises(ValueError, match="Unregistered"):
+        cb.read_run_csv(unknown)

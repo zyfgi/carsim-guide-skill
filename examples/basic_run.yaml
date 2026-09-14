@@ -1,0 +1,19 @@
+schema_version: 1
+experiment:
+  id: basic_run
+  seed: 42
+vehicle:
+  base: distributed_ev
+simulation:
+  duration: 10.0
+  dt: 0.001
+road:
+  mu: 0.8
+maneuver:
+  speed_kmh: [[0, 40], [10, 40]]
+  steering_deg: [[0, 0], [10, 0]]
+outputs:
+  estimator: [Vx, Ax, Ay, AVz, AVy_L1, AVy_R1, AVy_L2, AVy_R2]
+  evaluator: [Fx_L1, Fy_L1, Fz_L1]
+validation:
+  minimum_speed_mps: 1.0

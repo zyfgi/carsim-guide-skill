@@ -32,7 +32,7 @@ Usage example (straight cruise at 50 km/h for 65 s, then read the CSV):
 After `python setup_paths.py` has run once on the machine, --prog/--datadir/
 --base can be omitted: they default to environment variables (CARSIM_PROG /
 CARSIM_DATADIR / CARSIM_BASE), then to the cache file
-~/.carsim_guide_paths.json. Only --out is ever required.
+~/.carsim_guide_paths.json. A base must first be selected explicitly.
 
 Profiles are comma-separated "time:value" pairs, time in s, speed in km/h,
 steering-wheel angle in deg. Omit --speed-profile for a constant 50 km/h.
@@ -43,7 +43,12 @@ import logging
 import os
 import subprocess
 import sys
+import warnings
 from pathlib import Path
+
+from result_contract import CHANNEL_REGISTRY, channel, load_run, no_truth_channels
+from scenario_schema import SimulationConfig
+from vehicle_registry import product_version as resolve_version, sha256
 
 logger = logging.getLogger("carsim_batch")
 
@@ -79,6 +84,8 @@ def resolve_paths(prog=None, datadir=None, base=None,
     """
     given = {"prog": prog, "datadir": datadir, "base_run_all": base}
     cached = cached_paths()
+    if cached.get("base_selection") != "explicit":
+        cached.pop("base_run_all", None)
     out = {}
     for key in ("prog", "datadir", "base_run_all"):
         val = given[key] or os.environ.get(ENV_KEYS[key]) or cached.get(key)
@@ -88,6 +95,9 @@ def resolve_paths(prog=None, datadir=None, base=None,
                 "scripts/setup_paths.py once (discovers and caches CarSim "
                 "paths for all later sessions)." % (key, ENV_KEYS[key]))
         out[key] = val
+    if "base_run_all" in require and not base and not os.environ.get("CARSIM_BASE") and out["base_run_all"]:
+        if sha256(out["base_run_all"]) != cached.get("base_sha256"):
+            raise RuntimeError("Pinned base changed; explicitly rebind via setup_paths.py")
     return out["prog"], out["datadir"], out["base_run_all"]
 
 # ---------------------------------------------------------------------------
@@ -112,23 +122,13 @@ OUTPUTS_EXTRA = [
     "ROLL", "PITCH",            # Euler angles [deg] - gravity projection
     "AV_Mt_D1_L", "AV_Mt_D1_R", "AV_Mt_D2_L", "AV_Mt_D2_R",  # motor speeds [rpm]
 ]
+OUTPUTS_OBSERVABLE = [n for n in OUTPUTS_CORE + OUTPUTS_EXTRA if channel(n).role != "truth"]
+OUTPUTS_TRUTH = [n for n in OUTPUTS_CORE if channel(n).role == "truth"]
 
 # Wheel corner naming used by CarSim channels (global convention):
 #   L1=FL  R1=FR  L2=RL  R2=RR   (axle 1 = front, 2 = rear)
 
-# ---------------------------------------------------------------------------
-# CSV unit contract -> SI (all scales verified against solver output).
-#   Vx/Vy  km/h->m/s     Ax/Ay  g->m/s^2    AVz/angles  deg(/s)->rad(/s)
-#   AVy_*  rpm->rad/s    forces/torques already SI
-SI_SCALES = [
-    ("vx", 0.2777778), ("vy", 0.2777778),
-    ("ax", 9.81), ("ay", 9.81),
-    ("avz", 0.0174533), ("roll", 0.0174533), ("pitch", 0.0174533),
-    ("yaw", 0.0174533), ("alpha", 0.0174533),
-    ("steer", 0.0174533),
-    ("avy", 0.1047198),          # wheel spin: rpm -> rad/s
-]
-
+# CSV units and roles are maintained in result_contract.CHANNEL_REGISTRY.
 # Channels that are simulator ground truth. If an estimator/consumer must stay
 # "blind" to internal states (e.g. online validation), keep these OUT of it and
 # use them only for evaluation. Observable states = everything else above.
@@ -137,28 +137,19 @@ UNRELIABLE_COLS = ("Lat_Veh", "Lat_Targ")  # known-drift artifacts; use Yo/Yaw
 
 
 def si_scale(col):
-    """Return the multiply-to-SI factor for a run.csv column name.
+    """Compatibility lookup: explicit registry factor; unknowns return 1.
 
-    Matching is exact or underscore-delimited: "Vx" and "Vx_R1" match the "vx"
-    rule, while "AVYX" or "AV_Trans" do not - so unrelated columns are never
-    silently rescaled. Unknown identities stay at 1.0 and read_run_csv warns
-    about them.
+    Strict CSV reading uses channel() directly and rejects unknown names.
     """
-    c = col.lower()
-    if c == "time":
-        return 1.0
-    for prefix, scale in SI_SCALES:
-        if c == prefix or c.startswith(prefix + "_"):
-            return scale
-    return 1.0  # forces N, torques N.m, kappa -, motor rpm kept as-is, etc.
+    try:
+        return channel(col).scale
+    except ValueError:
+        return 1.0  # compatibility helper only; CSV readers reject unknowns
 
 
 def _known_unit(col):
-    """True if a column's identity is covered by the verified unit contract
-    (SI forces/torques, dimensionless kappa, motor rpm, generic time/id)."""
-    c = col.lower()
-    return (c.startswith(("fx_", "fy_", "fz_", "my_", "kappa_", "av_mt_", "time"))
-            or c in ("station", "xo", "yo", "yaw", "zo"))
+    """Whether the exact CSV identity has a registered unit and role."""
+    return col in CHANNEL_REGISTRY
 
 
 # ---------------------------------------------------------------------------
@@ -167,7 +158,7 @@ def _known_unit(col):
 def _table(name, rows, interp="LINEAR_FLAT"):
     """CarSim ENDTABLE block: header, 'x, y' rows, ENDTABLE."""
     lines = ["%s %s" % (name, interp)]
-    lines += ["%.6f, %.6f" % (x, y) for x, y in rows]
+    lines += ["%.17g, %.17g" % (x, y) for x, y in rows]
     lines.append("ENDTABLE")
     return lines
 
@@ -184,7 +175,8 @@ def _dedupe(rows):
 
 
 def override_par(base_run_all, tstop, speed_rows, steer_rows,
-                 outputs=None, mu=0.9, tstep=TSTEP, extra_lines=()):
+                 outputs=None, mu=0.9, tstep=TSTEP, extra_lines=(),
+                 unsafe_extra_lines=(), vehicle_overrides=None):
     """Build override.par text: base reference + run switches + control tables.
 
     Key switches (see SKILL.md section 3 for the full rationale):
@@ -204,13 +196,28 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
       before the WRT declarations - the standard slot for parameter overrides
       such as static payloads: ["M_SU 1254.0", "IZZ_SU 1743.1"].
     """
-    outputs = outputs if outputs is not None else OUTPUTS_CORE + OUTPUTS_EXTRA
+    SimulationConfig(tstep, tstop)
+    if extra_lines:
+        warnings.warn("extra_lines is deprecated; use VehicleOverrides or unsafe_extra_lines",
+                      DeprecationWarning, stacklevel=2)
+    if extra_lines and unsafe_extra_lines:
+        raise ValueError("Use only one extra-lines argument")
+    raw_lines = list(unsafe_extra_lines or extra_lines)
+    protected = {"TSTART", "TSTOP", "TSTEP", "IPRINT"}
+    if vehicle_overrides:
+        protected.update(vehicle_overrides.keywords())
+    for line in raw_lines:
+        if line.strip() and line.split()[0].upper() in protected:
+            raise ValueError("Raw override conflicts with typed configuration: %s" % line)
+        if "\n" in line or "\r" in line:
+            raise ValueError("Supply one keyword line per list entry")
+    outputs = outputs if outputs is not None else OUTPUTS_OBSERVABLE
     lines = [
-        "PARSFILE", "PARSFILE " + base_run_all,
+        "PARSFILE", "OPT_ERROR_DIALOG 0", "PARSFILE " + str(base_run_all),
         "OPT_ERROR_DIALOG 0", "OPT_ALL_WRITE 0", "OPT_VS_FILETYPE 4",
-        "TSTART 0", "TSTOP %.6f" % tstop,
+        "TSTART 0", "TSTOP %.17g" % tstop,
         "OPT_STOP 0", "SSTOP 100000",
-        "TSTEP %.7f" % tstep, "IPRINT %d" % 1,
+        "TSTEP %.17g" % tstep, "IPRINT %d" % 1,
         "INSTALL_SPEED_CONTROLLER", "OPT_SC 1", "OPT_BK_SC 1",
         "OPT_SC_ENGINE_BRAKING 1",          # EV: prefer regen braking
         "SPEED_TARGET_CONSTANT 0", "SPEED_TARGET_S_CONSTANT 0",
@@ -221,20 +228,22 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
     # rows: s_left, mu_left, mu_right - uniform friction strip across lane
     lines += ["MU_ROAD_CARPET 2D_STEP",
               "0, -20, 20",
-              "-500, %.6f, %.6f" % (mu, mu),
-              "1000, %.6f, %.6f" % (mu, mu),
+              "-500, %.17g, %.17g" % (mu, mu),
+              "1000, %.17g, %.17g" % (mu, mu),
               "ENDTABLE"]
     # rows: time [s], steering wheel angle [deg] - open loop
     lines += ["OPT_DM 0", "OPT_STR_BY_TRQ 0"]
     lines += _table("STEER_SW_TABLE", _dedupe(steer_rows))
-    lines += list(extra_lines)  # parameter overrides (e.g. static payloads)
-    lines += ["WRT_" + name for name in outputs]
+    lines += vehicle_overrides.lines() if vehicle_overrides else []
+    lines += raw_lines
+    lines += ["WRT_" + {"Roll": "ROLL", "Pitch": "PITCH"}.get(name, name) for name in outputs]
     lines += ["LOG_ENTRY scenario override", "END", ""]
     return "\n".join(lines)
 
 
-def simfile(session_dir, prog, datadir, tstep=TSTEP):
+def simfile(session_dir, prog, datadir, tstep=TSTEP, product_version=None):
     """Build a self-contained simfile.sim writing all outputs into session_dir."""
+    version = resolve_version(prog, product_version)
     p = lambda name: os.path.join(session_dir, name)
     return "\n".join([
         "SIMFILE",
@@ -245,10 +254,10 @@ def simfile(session_dir, prog, datadir, tstep=TSTEP):
         "FINAL " + p("run_end.par"),
         "LOGFILE " + p("run_log.txt"),      # lists every dataset actually used
         "ERDFILE " + p("run.csv"),          # OPT_VS_FILETYPE 4 -> CSV
-        "PROGDIR " + prog,
-        "DATADIR " + datadir,
-        "PRODUCT_ID CarSim", "PRODUCT_VER 2024.0", "VEHICLE_CODE i_i",
-        "EXT_MODEL_STEP %.8f" % tstep,
+        "PROGDIR " + os.path.join(str(prog), ""),
+        "DATADIR " + os.path.join(str(datadir), ""),
+        "PRODUCT_ID CarSim", "PRODUCT_VER " + version, "VEHICLE_CODE i_i",
+        "EXT_MODEL_STEP %.17g" % tstep,
         "PORTS_IMP 0", "PORTS_EXP 0",
         # always pin the 64-bit solver; GUI-generated simfiles may say 32-bit
         "DLLFILE " + os.path.join(prog, "Programs", "solvers", "carsim_64.dll"),
@@ -257,23 +266,34 @@ def simfile(session_dir, prog, datadir, tstep=TSTEP):
 
 
 def make_scenario(out_dir, base_run_all=None, prog=None, datadir=None,
-                  tstop=65.0, speed_rows=None, steer_rows=None, **kw):
+                  tstop=None, speed_rows=None, steer_rows=None, config=None,
+                  product_version=None, **kw):
     """Write <out_dir>/{override.par, simfile.sim}. Returns the simfile path.
 
     base_run_all / prog / datadir default to the cached install paths
     (resolve_paths): env vars, then the setup_paths.py cache.
     """
     prog, datadir, base_run_all = resolve_paths(prog, datadir, base_run_all)
+    legacy_step = kw.pop("tstep", None)
+    if config is not None and (legacy_step is not None or tstop is not None):
+        raise ValueError("Pass SimulationConfig or tstep/tstop, not both")
+    config = config or SimulationConfig(TSTEP if legacy_step is None else legacy_step,
+                                        65.0 if tstop is None else tstop)
+    tstop = config.duration
+    out_dir = str(Path(out_dir).resolve())
     speed_rows = speed_rows if speed_rows is not None else [(0.0, 50.0),
                                                             (tstop, 50.0)]
     steer_rows = steer_rows if steer_rows is not None else [(0.0, 0.0),
                                                             (tstop, 0.0)]
+    par_text = override_par(base_run_all, tstop, speed_rows, steer_rows,
+                            tstep=config.dt, **kw)
+    sim_text = simfile(out_dir, prog, datadir, config.dt, product_version)
     os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "override.par"), "w", newline="\n") as f:
-        f.write(override_par(base_run_all, tstop, speed_rows, steer_rows, **kw))
+    with open(os.path.join(out_dir, "override.par"), "w", newline="\n", encoding="utf-8") as f:
+        f.write(par_text)
     sim = os.path.join(out_dir, "simfile.sim")
-    with open(sim, "w", newline="\n") as f:
-        f.write(simfile(out_dir, prog, datadir))
+    with open(sim, "w", newline="\n", encoding="utf-8") as f:
+        f.write(sim_text)
     return sim
 
 
@@ -309,31 +329,18 @@ def run_solver(simfile_path, prog=None, timeout=600):
 # ---------------------------------------------------------------------------
 # 3) CSV reader
 # ---------------------------------------------------------------------------
-def read_run_csv(path, columns=None):
+def read_run_csv(path, columns=None, *, allow_truth=False):
     """Read run.csv into a pandas DataFrame with SI units.
 
-    `columns` optionally restricts/derestricts the loaded columns (pass
-    load-bearing names like ["Time", "Vx", "AVz", "Ax", "Ay"]); large runs
-    are ~1 kHz x 100+ columns, so selecting columns saves a lot of memory.
+    Defaults to sensor-eligible channels only. Truth access requires an explicit
+    allow_truth=True for evaluation. All native columns must have registered
+    units; missing requested columns raise. Prefer load_run() with an explicit
+    estimator whitelist for research pipelines.
     """
-    import pandas as pd
-    header = pd.read_csv(path, nrows=0)
-    usecols = None if columns is None else [c for c in columns
-                                            if c in header.columns]
-    df = pd.read_csv(path, usecols=usecols)
-    if columns is not None:
-        # respect the caller's requested order (pandas returns file order)
-        df = df[[c for c in columns if c in df.columns]]
-    unknown = [c for c in df.columns if si_scale(c) == 1.0 and not _known_unit(c)]
-    if unknown:
-        logger.warning("no SI conversion rule for columns %s - returned unscaled; "
-                       "verify units before use", unknown)
-    drop = [c for c in UNRELIABLE_COLS if c in df.columns]
-    if drop:
-        df = df.drop(columns=drop)
-    for c in df.columns:
-        df[c] = df[c] * si_scale(c)
-    return df
+    if columns is not None and not allow_truth:
+        no_truth_channels(columns)
+    run = load_run(path)
+    return run.evaluator_view(columns) if allow_truth else run.estimator_view(columns)
 
 
 def summarize(df):
@@ -374,6 +381,8 @@ def main():
                     "(default: cached / CARSIM_BASE)")
     ap.add_argument("--out", required=True, help="scenario output directory")
     ap.add_argument("--tstop", type=float, default=65.0)
+    ap.add_argument("--dt", type=float, default=TSTEP)
+    ap.add_argument("--product-version", help="Required for custom install directory names")
     ap.add_argument("--speed-profile", default=None,
                     help='"t:v,..." in s and km/h (default constant 50)')
     ap.add_argument("--steer-profile", default=None,
@@ -397,7 +406,8 @@ def main():
     steer_rows = parse_profile(args.steer_profile, 0.0, args.tstop)
 
     sim = make_scenario(args.out, base, prog, datadir,
-                        args.tstop, speed_rows, steer_rows, mu=args.mu)
+                        args.tstop, speed_rows, steer_rows, mu=args.mu,
+                        tstep=args.dt, product_version=args.product_version)
     logger.info("wrote %s", sim)
 
     if args.run:

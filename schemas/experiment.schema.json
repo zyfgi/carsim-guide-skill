@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CarSim research experiment v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "experiment", "vehicle", "simulation", "road", "maneuver", "outputs"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "experiment": {
+      "type": "object", "additionalProperties": false, "required": ["id", "seed"],
+      "properties": {"id": {"$ref": "#/$defs/name"}, "seed": {"type": "integer", "minimum": 0}}
+    },
+    "vehicle": {
+      "type": "object", "additionalProperties": false, "required": ["base"],
+      "properties": {"base": {"type": "string", "minLength": 1}}
+    },
+    "simulation": {
+      "type": "object", "additionalProperties": false, "required": ["duration", "dt"],
+      "properties": {"duration": {"type": "number", "exclusiveMinimum": 0}, "dt": {"type": "number", "minimum": 0.0000001}}
+    },
+    "road": {"$ref": "#/$defs/road"},
+    "vehicle_parameters": {"$ref": "#/$defs/vehicleParameters"},
+    "maneuver": {
+      "type": "object", "additionalProperties": false, "required": ["speed_kmh", "steering_deg"],
+      "properties": {"speed_kmh": {"$ref": "#/$defs/profile"}, "steering_deg": {"$ref": "#/$defs/profile"}}
+    },
+    "outputs": {
+      "type": "object", "additionalProperties": false, "required": ["estimator", "evaluator"],
+      "properties": {"estimator": {"$ref": "#/$defs/channels"}, "evaluator": {"$ref": "#/$defs/channels"}}
+    },
+    "sensors": {
+      "type": "object", "minProperties": 1, "propertyNames": {"$ref": "#/$defs/name"},
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["channels", "sample_hz"],
+        "properties": {
+          "channels": {"$ref": "#/$defs/channels"}, "sample_hz": {"type": "number", "exclusiveMinimum": 0},
+          "latency_s": {"type": "number", "minimum": 0}, "noise_std": {"type": "number", "minimum": 0},
+          "bias": {"type": "number"}, "quantization": {"type": "number", "minimum": 0},
+          "jitter_s": {"type": "number", "minimum": 0},
+          "drop_probability": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    },
+    "validation": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"minimum_speed_mps": {"type": "number", "exclusiveMinimum": 0}}
+    },
+    "sweep": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id"],
+        "properties": {"id": {"$ref": "#/$defs/name"}, "road": {"$ref": "#/$defs/road"},
+                       "vehicle_parameters": {"$ref": "#/$defs/vehicleParameters"}}
+      }
+    }
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$", "maxLength": 100},
+    "channels": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "profile": {
+      "type": "array", "minItems": 2,
+      "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}
+    },
+    "road": {"type": "object", "additionalProperties": false, "required": ["mu"], "properties": {"mu": {"type": "number", "exclusiveMinimum": 0, "maximum": 2}}},
+    "vehicleParameters": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "sprung_mass_kg": {"type": "number", "exclusiveMinimum": 0},
+        "cg_x_m": {"type": "number"}, "cg_y_m": {"type": "number"}, "cg_z_m": {"type": "number", "minimum": 0},
+        "izz_kgm2": {"type": "number", "exclusiveMinimum": 0}
+      }
+    }
+  }
+}

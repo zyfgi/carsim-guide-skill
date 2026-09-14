@@ -41,17 +41,17 @@ def fake_install(tmp_path, monkeypatch):
 
     cfg_file = tmp_path / "paths.json"
     monkeypatch.setenv(sp.CONFIG_ENV, str(cfg_file))
+    monkeypatch.setattr(sp, "default_search_dirs", lambda: [str(tmp_path)])
     return {"prog": prog, "data": data, "newest": newer / "Run_all.par",
             "cfg": cfg_file}
 
 
-def test_discover_finds_prog_primary_data_and_newest_base(fake_install):
+def test_discover_lists_bases_without_selecting_one(fake_install):
     cfg = sp.discover(search_dirs=[str(fake_install["prog"].parent)])
     assert cfg["prog"] == str(fake_install["prog"].resolve())
     assert cfg["datadir"] == str(fake_install["data"].resolve())
-    assert cfg["base_run_all"] == str(fake_install["newest"].resolve())
-    # newest base wins even when it lives in a *_Data_test copy
-    assert "_Data_test" in cfg["base_run_all"]
+    assert cfg["base_run_all"] is None
+    assert str(fake_install["newest"].resolve()) in cfg["other_bases"]
     assert any(fake_install["data"].name in b for b in cfg["other_bases"])
     assert cfg["cli_solver"].endswith("VS_SolverWrapper_CLI_64.exe")
     assert cfg["solver_dll"].endswith("carsim_64.dll")
@@ -68,7 +68,7 @@ def test_cli_json_then_forget(fake_install, capsys):
     assert sp.main(["--json"]) == 0
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["prog"].endswith("CarSim2024.0_Prog")
-    assert payload["base_run_all"].endswith("Run_all.par")
+    assert payload["base_run_all"] is None
     assert sp.main(["--forget"]) == 0
     assert not fake_install["cfg"].exists()
 
@@ -106,3 +106,29 @@ def test_set_rejects_unknown_key(tmp_path, monkeypatch):
     monkeypatch.setenv(sp.CONFIG_ENV, str(tmp_path / "paths.json"))
     with pytest.raises(SystemExit, match="--set keys"):
         sp.main(["--set", "nonsense=1"])
+
+
+@pytest.mark.parametrize("key", ["prog", "datadir", "cli_solver", "solver_dll"])
+def test_each_critical_cache_path_must_exist(fake_install, key):
+    cfg = sp.discover([str(fake_install["prog"].parent)])
+    cfg[key] = None
+    assert not sp._validate(cfg)
+
+
+def test_stale_cache_rediscovery_and_json_output(fake_install, capsys):
+    cfg = sp.discover([str(fake_install["prog"].parent)])
+    cfg["solver_dll"] = "missing.dll"
+    sp.save_config(cfg)
+    assert sp.main(["--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["base_run_all"] is None
+    assert sp._validate(sp.load_config())
+
+
+def test_explicit_base_binding_and_change_detection(fake_install, capsys):
+    base = fake_install["newest"]
+    sp.main(["--set", "base_run_all=" + str(base)])
+    capsys.readouterr()
+    assert sp.load_config()["base_selection"] == "explicit"
+    base.write_text("changed")
+    with pytest.raises(SystemExit, match="Pinned base"):
+        sp.main(["--json"])

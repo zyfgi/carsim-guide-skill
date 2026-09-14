@@ -1,0 +1,325 @@
+{
+  "record_version": 1,
+  "created_utc": "2026-09-14T14:42:05.968954+00:00",
+  "kind": "executable_contract_checks",
+  "provenance": {
+    "python": "3.14.6",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "pandas": "3.0.3",
+      "numpy": "2.5.1",
+      "PyYAML": "6.0.3",
+      "jsonschema": "4.26.0",
+      "torch": "2.14.0"
+    },
+    "git": {
+      "commit": "aec8a8922c44e98f8b7f963ac2b38b91f5848abb",
+      "status": "M .gitignore\n M README.md\n M SKILL.md\n M evals/README.md\n M evals/evals.json\n M examples/param_sweep.py\n M examples/simulink_cosim.py\n M examples/torque_vectoring.py\n M references/python-interface.md\n M references/simulink-cosim.md\n M requirements.txt\n M scripts/carsim_batch.py\n M scripts/cosim_model.m\n M scripts/setup_paths.py\n M scripts/tv_cosim.m\n M tests/test_carsim_batch.py\n M tests/test_setup_paths.py\n?? evals/results/\n?? evals/run_checks.py\n?? examples/basic_run.yaml\n?? examples/parameter_sweep.yaml\n?? examples/tire_force_estimation.yaml\n?? examples/vehicle_parameter_id.yaml\n?? references/channel-registry.md\n?? references/estimator-validation.md\n?? references/research-experiments.md\n?? schemas/\n?? scripts/experiment_runner.py\n?? scripts/result_contract.py\n?? scripts/scenario_schema.py\n?? scripts/sensor_replay.py\n?? scripts/validate_run.py\n?? scripts/vehicle_registry.py\n?? tests/test_research_contract.py"
+    },
+    "source_sha256": {
+      "scripts\\carsim_batch.py": "d43f86b0dc4df315d50c336ab936a5dad358a3603fa93706c37a662f21454336",
+      "scripts\\dump_dll_exports.py": "0a0197eefa87b2accfe2332d219572c7c7d463f772a097f13c3fe1ecc0d0492b",
+      "scripts\\experiment_runner.py": "86388eaef05fd3f50f4f18c8a2d17d53d438e0c551c987c88e21edfff94f0e5d",
+      "scripts\\result_contract.py": "9341537b87cf04f9789de3c24930acbf039db03bed6af3e8f5b30dbe02771161",
+      "scripts\\scenario_schema.py": "86e6737e30e70b009ab28b44457258f3cadedc2451f26f7f8d70a21a050c974a",
+      "scripts\\sensor_replay.py": "b42553190014122cd61cf4d43229b607c0c8a768a457e14aebc14b46b9d8962f",
+      "scripts\\setup_paths.py": "fd78099b182e4e487994a9c4a4e677d1758053c37d7de1085a85f4e65a5bd96c",
+      "scripts\\validate_run.py": "b8324031ebb9cf048a4956d102668a8d55f3d6ea080a8d25e0aa5b182afe8c77",
+      "scripts\\vehicle_registry.py": "9796a40154944a33d3ad8606865978b4ce19884a5217cf6cbe935a12719676f7",
+      "schemas\\experiment.schema.json": "e287ecd3edb701b677e04afc902f8beb90431952ffc2b3c1c3b88d53c4050283",
+      "tests\\functional_carsim.py": "846fc445fbe5d5f81cf2c50f153387e317cac7146dacec2d1e673acb9f8276b9",
+      "tests\\test_carsim_batch.py": "03ec00a0f08e5b93566bffc3561a1ea66832ec07f9269bb2cd294503f0a35e17",
+      "tests\\test_research_contract.py": "17e94fa5af8e7cbfd9602e043d65cc125a93b9481aeb70a7091e3b01a992a46b",
+      "tests\\test_setup_paths.py": "9750bb0baf707b071c9cd17c3a544ac64b338049bd86995ad986b88cd4b7a21b",
+      "examples\\basic_run.yaml": "5150f627570fce03df01104e855a56b9f5c39ab89e96a2226c9c002ead5d54b9",
+      "examples\\parameter_sweep.yaml": "b402456b2fedd13936b076e492caa9c6cb87c96853c32da88597f2bce8e8de70",
+      "examples\\tire_force_estimation.yaml": "d682640a9aae00c95d54aa1cf3ac855b2cb02956415c452a247d0ca2630815f3",
+      "examples\\vehicle_parameter_id.yaml": "f3e62b6ab342250a3c1e6a35bdfffab21ce1647517b08e5535cd02c1de5c40eb"
+    }
+  },
+  "pytest_exit_code": 0,
+  "counts": {
+    "passed": 68,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "tests.test_carsim_batch.test_table_block_format",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_dedupe_removes_repeated_x",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_override_par_contains_core_switches",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_simfile_pins_64bit_and_ports",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Time-1.0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Vx-0.2777778]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Vy-0.2777778]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Ax-9.81]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Ay-9.81]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[AVz-0.0174533]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Roll-0.0174533]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Steer_L1-0.0174533]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Alpha_R2-0.0174533]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[AVy_L1-0.1047198]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Fx_L1-1.0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[My_Bk_R2-1.0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Kappa_L1-1.0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_known_unit_categories",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale_never_matches_across_word_boundaries",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_resolve_paths_precedence_arg_env_then_cache",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_resolve_paths_missing_raises_with_setup_hint",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_read_run_csv_converts_to_si",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_read_run_csv_drops_unreliable",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_read_run_csv_respects_order_and_rejects_unknown",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_step_single_source_and_vehicle_units",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[0-1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[-1-1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[0.03-0.1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[0.001-inf]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[nan-1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_units_access_and_copy_isolation",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>2]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>3]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>4]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>5]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>6]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>7]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_base_binding_hash_and_version",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_causal_seeded_replay",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[stale]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[short]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[duplicate]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[nan]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[missing]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[echo]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[stationary]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_runner_end_to_end_and_failure_manifest",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_compile_only_and_sweep",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_shipped_yaml_examples_are_valid[basic_run]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_shipped_yaml_examples_are_valid[parameter_sweep]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_shipped_yaml_examples_are_valid[tire_force_estimation]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_shipped_yaml_examples_are_valid[vehicle_parameter_id]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_legacy_tstep_and_aliases",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_typo_in_sweep_is_not_silently_ignored",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_discover_lists_bases_without_selecting_one",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_save_load_roundtrip",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_cli_json_then_forget",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_validate_flags_missing_paths",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_set_bootstraps_manual_install",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_set_rejects_unknown_key",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_each_critical_cache_path_must_exist[prog]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_each_critical_cache_path_must_exist[datadir]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_each_critical_cache_path_must_exist[cli_solver]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_each_critical_cache_path_must_exist[solver_dll]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_stale_cache_rediscovery_and_json_output",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_explicit_base_binding_and_change_detection",
+      "status": "passed"
+    }
+  ],
+  "licensed_experiments": [],
+  "rejected_experiments": [],
+  "functional_requested": false,
+  "recorder_sha256": "085d9f06c1f1fd6741e20f1bdc21a34ed0645ee3e7aff99043a342bae102e3cf",
+  "manual_trigger_evals": "not_run; see evals.json protocol"
+}

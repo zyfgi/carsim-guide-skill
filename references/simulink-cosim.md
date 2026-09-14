@@ -70,3 +70,18 @@ PI yaw-rate target 0.15 rad/s at 50 km/h cruise: steady error 0.00%, 95% rise 0.
 
   (adjust the target to your agent's skills directory; MathWorks license applies — use in conjunction with MathWorks products.)
 - Component-level S-Functions (`vs_dyn`, `vs_kin`, `vs_ctl`, `vs_state` in the same folder) expose sub-models separately; UDP blocks exist for distributed setups.
+
+
+## Research-contract integration update
+
+The Python examples now create a single `SimulationConfig` and pass its duration
+and dt to both CarSim files and the MATLAB model builder. MATLAB builders accept
+optional `tstop, dt` arguments; their integrators and fixed-step solver use the
+same dt. Examples keep the verified 1 ms default.
+
+`PROGDIR` and `DATADIR` must include their trailing path separator. Some native
+terrain references concatenate the directory string with a filename; omitting
+it caused `...DataProving_Ground.vsterrain` and a stop at t=0 in a regression run.
+The generator now preserves the separator and disables error dialogs before
+reading the base. Python captures both MATLAB stdout and stderr in
+`matlab_output.txt` so startup and solver errors are reviewable.

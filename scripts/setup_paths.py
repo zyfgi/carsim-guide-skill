@@ -31,6 +31,8 @@ import sys
 import time
 from pathlib import Path
 
+from vehicle_registry import sha256
+
 CONFIG_ENV = "CARSIM_GUIDE_CONFIG"
 CONFIG_DEFAULT = Path.home() / ".carsim_guide_paths.json"
 
@@ -171,8 +173,8 @@ def discover(search_dirs=None):
         "cli_solver": cli,
         "solver_dll": dll,
         "license_manager": cslm,
-        "base_run_all": bases[0] if bases else None,
-        "other_bases": bases[1:1 + MAX_OTHER_BASES],
+        "base_run_all": None,
+        "other_bases": bases[:MAX_OTHER_BASES],
         "matlab": shutil.which("matlab"),   # optional: Simulink co-sim examples
         "discovered_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ",
                                         time.gmtime()),
@@ -183,13 +185,14 @@ def discover(search_dirs=None):
 # commands
 # ---------------------------------------------------------------------------
 def _validate(cfg):
-    """Warn about cached paths that no longer exist; True if prog still valid."""
+    """All four runtime paths are required, even when absent from the cache."""
     problems = [k for k in ("prog", "datadir", "cli_solver", "solver_dll")
-                if cfg.get(k) and not Path(cfg[k]).exists()]
+                if not cfg.get(k) or not (Path(cfg[k]).is_dir() if k in ("prog", "datadir")
+                                          else Path(cfg[k]).is_file())]
     for k in problems:
-        print("warning: cached %s no longer exists: %s" % (k, cfg[k]),
+        print("warning: cached %s missing or invalid: %s" % (k, cfg.get(k)),
               file=sys.stderr)
-    return "prog" not in problems
+    return not problems
 
 
 def _apply_set(cfg, pairs):
@@ -202,6 +205,9 @@ def _apply_set(cfg, pairs):
         if k not in allowed or not v:
             raise SystemExit("--set keys: %s" % ", ".join(sorted(allowed)))
         cfg[k] = str(Path(v).resolve())
+        if k == "base_run_all":
+            cfg["base_sha256"] = sha256(cfg[k])
+            cfg["base_selection"] = "explicit"
     if cfg.get("prog"):
         prog = Path(cfg["prog"])
         cfg["cli_solver"], cfg["solver_dll"], cfg["license_manager"] = \
@@ -213,7 +219,7 @@ def _apply_set(cfg, pairs):
                 cfg["other_datadirs"] = [str(d.resolve()) for d in others]
     if cfg.get("datadir") and not cfg.get("base_run_all"):
         bases = find_bases([Path(cfg["datadir"])])
-        cfg["base_run_all"] = bases[0] if bases else None
+        cfg["other_bases"] = bases[:MAX_OTHER_BASES]
     missing = [k for k in ("prog", "datadir") if not cfg.get(k)]
     if missing:
         raise SystemExit("still missing %s after --set" % ", ".join(missing))
@@ -245,7 +251,8 @@ def main(argv=None):
         print("deleted %s" % p)
         return 0
 
-    cfg = None if args.refresh else load_config()
+    old = load_config()
+    cfg = None if args.refresh else old
     if cfg is None:
         try:
             cfg = discover()
@@ -253,17 +260,27 @@ def main(argv=None):
             if not args.set:
                 raise
             cfg = {}  # --set can bootstrap a non-standard install by hand
-    elif not _validate(cfg):
-        print("cache stale - rediscovering")
+    elif not args.set and not _validate(cfg):
+        print("cache stale - rediscovering", file=sys.stderr)
         cfg = discover()
+    if old and old.get("base_selection") == "explicit" and not cfg.get("base_run_all"):
+        for key in ("base_run_all", "base_sha256", "base_selection"):
+            cfg[key] = old.get(key)
     if args.set:
         cfg = _apply_set(cfg, args.set)
+    if not _validate(cfg):
+        raise SystemExit("Runtime paths incomplete; set prog/datadir explicitly")
+    if cfg.get("base_selection") != "explicit":
+        cfg["base_run_all"] = None  # migrate legacy newest-base caches
+    if cfg.get("base_run_all"):
+        base = Path(cfg["base_run_all"])
+        if not base.is_file() or sha256(base) != cfg.get("base_sha256"):
+            raise SystemExit("Pinned base missing or changed; explicitly rebind base_run_all")
     save_config(cfg)
 
     if not cfg.get("base_run_all"):
-        print("note: no GUI-expanded base Run_all.par found yet - do the "
-              "one-time GUI step (SKILL.md section 0, step 3), then re-run, "
-              "or --set base_run_all=\"...\"", file=sys.stderr)
+        print("note: select a GUI-expanded base explicitly with "
+              "--set base_run_all=\"...\"; other_bases are candidates only", file=sys.stderr)
     if args.json:
         print(_resolved_line(cfg))
     else:

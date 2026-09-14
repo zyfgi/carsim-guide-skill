@@ -1,0 +1,20 @@
+schema_version: 1
+experiment: {id: mass_cg_inertia_data, seed: 102}
+vehicle: {base: distributed_ev}
+simulation: {duration: 30.0, dt: 0.001}
+road: {mu: 0.9}
+vehicle_parameters:
+  sprung_mass_kg: 1390.0
+  cg_x_m: 0.915
+  cg_y_m: 0.05
+  cg_z_m: 0.54
+  izz_kgm2: 1700.0
+maneuver:
+  speed_kmh: [[0, 35], [10, 55], [20, 45], [30, 35]]
+  steering_deg: [[0, 0], [10, 5], [20, -5], [30, 0]]
+outputs:
+  estimator: [Vx, Ax, Ay, AVz, My_Dr_L1, My_Dr_R1, My_Dr_L2, My_Dr_R2]
+  evaluator: [Vy, Fz_L1, Fz_R1, Fz_L2, Fz_R2]
+# Parameter values and run_echo.par belong only to the evaluator.
+validation:
+  minimum_speed_mps: 1.0

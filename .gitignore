@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 *.vsb
 run.csv
+.pytest_cache/
+.test-tmp*/
+.validation/
+.tools/

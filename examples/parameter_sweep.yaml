@@ -1,0 +1,22 @@
+schema_version: 1
+experiment: {id: friction_mass_sweep, seed: 42}
+vehicle: {base: distributed_ev}
+simulation: {duration: 30.0, dt: 0.001}
+road: {mu: 0.8}
+maneuver:
+  speed_kmh: [[0, 40], [15, 60], [30, 40]]
+  steering_deg: [[0, 0], [10, 5], [20, -5], [30, 0]]
+outputs:
+  estimator: [Vx, Ax, Ay, AVz]
+  evaluator: [Kappa_L1, Kappa_R1, Kappa_L2, Kappa_R2]
+# These are absolute sprung masses, not total vehicle mass or added payload.
+sweep:
+  - id: low_mu
+    road: {mu: 0.4}
+    vehicle_parameters: {sprung_mass_kg: 1270}
+  - id: nominal
+    road: {mu: 0.8}
+    vehicle_parameters: {sprung_mass_kg: 1270}
+  - id: heavy
+    road: {mu: 0.8}
+    vehicle_parameters: {sprung_mass_kg: 1390}

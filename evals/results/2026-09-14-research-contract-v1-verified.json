@@ -1,0 +1,901 @@
+{
+  "record_version": 1,
+  "created_utc": "2026-09-14T14:25:36.045556+00:00",
+  "kind": "executable_contract_checks",
+  "provenance": {
+    "python": "3.14.6",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "pandas": "3.0.3",
+      "numpy": "2.5.1",
+      "PyYAML": "6.0.3",
+      "jsonschema": "4.26.0",
+      "torch": "2.14.0"
+    },
+    "git": {
+      "commit": "aec8a8922c44e98f8b7f963ac2b38b91f5848abb",
+      "status": "M .gitignore\n M README.md\n M SKILL.md\n M evals/README.md\n M evals/evals.json\n M examples/param_sweep.py\n M examples/simulink_cosim.py\n M examples/torque_vectoring.py\n M references/python-interface.md\n M requirements.txt\n M scripts/carsim_batch.py\n M scripts/setup_paths.py\n M tests/test_carsim_batch.py\n M tests/test_setup_paths.py\n?? evals/results/\n?? evals/run_checks.py\n?? examples/basic_run.yaml\n?? examples/parameter_sweep.yaml\n?? examples/tire_force_estimation.yaml\n?? examples/vehicle_parameter_id.yaml\n?? references/channel-registry.md\n?? references/estimator-validation.md\n?? references/research-experiments.md\n?? schemas/\n?? scripts/experiment_runner.py\n?? scripts/result_contract.py\n?? scripts/scenario_schema.py\n?? scripts/sensor_replay.py\n?? scripts/validate_run.py\n?? scripts/vehicle_registry.py\n?? tests/test_research_contract.py"
+    },
+    "source_sha256": {
+      "scripts\\carsim_batch.py": "f5b284735713c2a6c6dcd310b02d5204a6093e0c602e4e01176b3f03ed831f4c",
+      "scripts\\dump_dll_exports.py": "0a0197eefa87b2accfe2332d219572c7c7d463f772a097f13c3fe1ecc0d0492b",
+      "scripts\\experiment_runner.py": "86388eaef05fd3f50f4f18c8a2d17d53d438e0c551c987c88e21edfff94f0e5d",
+      "scripts\\result_contract.py": "9341537b87cf04f9789de3c24930acbf039db03bed6af3e8f5b30dbe02771161",
+      "scripts\\scenario_schema.py": "86e6737e30e70b009ab28b44457258f3cadedc2451f26f7f8d70a21a050c974a",
+      "scripts\\sensor_replay.py": "b42553190014122cd61cf4d43229b607c0c8a768a457e14aebc14b46b9d8962f",
+      "scripts\\setup_paths.py": "fd78099b182e4e487994a9c4a4e677d1758053c37d7de1085a85f4e65a5bd96c",
+      "scripts\\validate_run.py": "b8324031ebb9cf048a4956d102668a8d55f3d6ea080a8d25e0aa5b182afe8c77",
+      "scripts\\vehicle_registry.py": "9796a40154944a33d3ad8606865978b4ce19884a5217cf6cbe935a12719676f7",
+      "schemas\\experiment.schema.json": "e287ecd3edb701b677e04afc902f8beb90431952ffc2b3c1c3b88d53c4050283",
+      "tests\\functional_carsim.py": "846fc445fbe5d5f81cf2c50f153387e317cac7146dacec2d1e673acb9f8276b9",
+      "tests\\test_carsim_batch.py": "21aca6d003d6d4c40d4f8d62cc17047872728f52afaba99eca3477e1ddd51757",
+      "tests\\test_research_contract.py": "17e94fa5af8e7cbfd9602e043d65cc125a93b9481aeb70a7091e3b01a992a46b",
+      "tests\\test_setup_paths.py": "9750bb0baf707b071c9cd17c3a544ac64b338049bd86995ad986b88cd4b7a21b",
+      "examples\\basic_run.yaml": "5150f627570fce03df01104e855a56b9f5c39ab89e96a2226c9c002ead5d54b9",
+      "examples\\parameter_sweep.yaml": "b402456b2fedd13936b076e492caa9c6cb87c96853c32da88597f2bce8e8de70",
+      "examples\\tire_force_estimation.yaml": "d682640a9aae00c95d54aa1cf3ac855b2cb02956415c452a247d0ca2630815f3",
+      "examples\\vehicle_parameter_id.yaml": "f3e62b6ab342250a3c1e6a35bdfffab21ce1647517b08e5535cd02c1de5c40eb"
+    }
+  },
+  "pytest_exit_code": 1,
+  "counts": {
+    "passed": 71,
+    "failed": 1,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "tests.test_carsim_batch.test_table_block_format",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_dedupe_removes_repeated_x",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_override_par_contains_core_switches",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_simfile_pins_64bit_and_ports",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Time-1.0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Vx-0.2777778]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Vy-0.2777778]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Ax-9.81]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Ay-9.81]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[AVz-0.0174533]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Roll-0.0174533]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Steer_L1-0.0174533]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Alpha_R2-0.0174533]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[AVy_L1-0.1047198]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Fx_L1-1.0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[My_Bk_R2-1.0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale[Kappa_L1-1.0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_known_unit_categories",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_si_scale_never_matches_across_word_boundaries",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_resolve_paths_precedence_arg_env_then_cache",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_resolve_paths_missing_raises_with_setup_hint",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_read_run_csv_converts_to_si",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_read_run_csv_drops_unreliable",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_carsim_batch.test_read_run_csv_respects_order_and_rejects_unknown",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_step_single_source_and_vehicle_units",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[0-1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[-1-1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[0.03-0.1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[0.001-inf]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_invalid_timing[nan-1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_units_access_and_copy_isolation",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>0]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>1]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>2]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>3]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>4]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>5]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>6]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_rejects_invalid_intent[<lambda>7]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_base_binding_hash_and_version",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_causal_seeded_replay",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[stale]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[short]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[duplicate]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[nan]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[missing]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[echo]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_postrun_rejects_invalid_experiment[stationary]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_runner_end_to_end_and_failure_manifest",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_compile_only_and_sweep",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_shipped_yaml_examples_are_valid[basic_run]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_shipped_yaml_examples_are_valid[parameter_sweep]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_shipped_yaml_examples_are_valid[tire_force_estimation]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_shipped_yaml_examples_are_valid[vehicle_parameter_id]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_legacy_tstep_and_aliases",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_research_contract.test_schema_typo_in_sweep_is_not_silently_ignored",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_discover_lists_bases_without_selecting_one",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_save_load_roundtrip",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_cli_json_then_forget",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_validate_flags_missing_paths",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_set_bootstraps_manual_install",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_set_rejects_unknown_key",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_each_critical_cache_path_must_exist[prog]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_each_critical_cache_path_must_exist[datadir]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_each_critical_cache_path_must_exist[cli_solver]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_each_critical_cache_path_must_exist[solver_dll]",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_stale_cache_rediscovery_and_json_output",
+      "status": "passed"
+    },
+    {
+      "id": "tests.test_setup_paths.test_explicit_base_binding_and_change_detection",
+      "status": "passed"
+    },
+    {
+      "id": "tests.functional_carsim.test_constant_torque_import_spins_wheels",
+      "status": "passed"
+    },
+    {
+      "id": "tests.functional_carsim.test_openloop_throttle_then_brake",
+      "status": "passed"
+    },
+    {
+      "id": "tests.functional_carsim.test_speed_table_override_replaces_base",
+      "status": "passed"
+    },
+    {
+      "id": "tests.functional_carsim.test_simulink_cosim_end_to_end",
+      "status": "failed"
+    }
+  ],
+  "licensed_experiments": [
+    {
+      "experiment": {
+        "schema_version": 1,
+        "experiment": {
+          "id": "basic_run",
+          "seed": 42
+        },
+        "vehicle": {
+          "base": "distributed_ev"
+        },
+        "simulation": {
+          "duration": 10.0,
+          "dt": 0.001
+        },
+        "road": {
+          "mu": 0.8
+        },
+        "maneuver": {
+          "speed_kmh": [
+            [
+              0,
+              40
+            ],
+            [
+              10,
+              40
+            ]
+          ],
+          "steering_deg": [
+            [
+              0,
+              0
+            ],
+            [
+              10,
+              0
+            ]
+          ]
+        },
+        "outputs": {
+          "estimator": [
+            "Vx",
+            "Ax",
+            "Ay",
+            "AVz",
+            "AVy_L1",
+            "AVy_R1",
+            "AVy_L2",
+            "AVy_R2"
+          ],
+          "evaluator": [
+            "Fx_L1",
+            "Fy_L1",
+            "Fz_L1"
+          ]
+        },
+        "validation": {
+          "minimum_speed_mps": 1.0
+        }
+      },
+      "status": "passed",
+      "validation": {
+        "passed": true,
+        "samples": 10001,
+        "final_time_s": 10.0,
+        "echo_parameters": {
+          "TSTEP": 0.001,
+          "TSTOP": 10.0,
+          "IPRINT": 1.0
+        },
+        "minimum_speed_mps": 1.0
+      },
+      "base_sha256": "74d9245e4b89cab1503d4b2947611342892bae8f4a27678ebfbc9a38deac208e",
+      "carsim_version": "2024.0",
+      "powertrain": "C-Class Hatchback #1 / 10kW x4 Electric AWD / 3.905 ratio",
+      "runtime_sha256": {
+        "cli": "375d38388c5febbeb55b886e691228ae82a9b87816e0dc4dff7f45e4fd099cd3",
+        "dll": "9460911ba689e398ca4e2a6a509743cab929770475ec92a76509c941b0581252"
+      },
+      "source_sha256": {
+        "scripts\\carsim_batch.py": "f5b284735713c2a6c6dcd310b02d5204a6093e0c602e4e01176b3f03ed831f4c",
+        "scripts\\dump_dll_exports.py": "0a0197eefa87b2accfe2332d219572c7c7d463f772a097f13c3fe1ecc0d0492b",
+        "scripts\\experiment_runner.py": "86388eaef05fd3f50f4f18c8a2d17d53d438e0c551c987c88e21edfff94f0e5d",
+        "scripts\\result_contract.py": "9341537b87cf04f9789de3c24930acbf039db03bed6af3e8f5b30dbe02771161",
+        "scripts\\scenario_schema.py": "86e6737e30e70b009ab28b44457258f3cadedc2451f26f7f8d70a21a050c974a",
+        "scripts\\sensor_replay.py": "b42553190014122cd61cf4d43229b607c0c8a768a457e14aebc14b46b9d8962f",
+        "scripts\\setup_paths.py": "fd78099b182e4e487994a9c4a4e677d1758053c37d7de1085a85f4e65a5bd96c",
+        "scripts\\validate_run.py": "b8324031ebb9cf048a4956d102668a8d55f3d6ea080a8d25e0aa5b182afe8c77",
+        "scripts\\vehicle_registry.py": "9796a40154944a33d3ad8606865978b4ce19884a5217cf6cbe935a12719676f7",
+        "schemas\\experiment.schema.json": "e287ecd3edb701b677e04afc902f8beb90431952ffc2b3c1c3b88d53c4050283",
+        "tests\\functional_carsim.py": "846fc445fbe5d5f81cf2c50f153387e317cac7146dacec2d1e673acb9f8276b9",
+        "tests\\test_carsim_batch.py": "21aca6d003d6d4c40d4f8d62cc17047872728f52afaba99eca3477e1ddd51757",
+        "tests\\test_research_contract.py": "17e94fa5af8e7cbfd9602e043d65cc125a93b9481aeb70a7091e3b01a992a46b",
+        "tests\\test_setup_paths.py": "9750bb0baf707b071c9cd17c3a544ac64b338049bd86995ad986b88cd4b7a21b",
+        "examples\\basic_run.yaml": "5150f627570fce03df01104e855a56b9f5c39ab89e96a2226c9c002ead5d54b9",
+        "examples\\parameter_sweep.yaml": "b402456b2fedd13936b076e492caa9c6cb87c96853c32da88597f2bce8e8de70",
+        "examples\\tire_force_estimation.yaml": "d682640a9aae00c95d54aa1cf3ac855b2cb02956415c452a247d0ca2630815f3",
+        "examples\\vehicle_parameter_id.yaml": "f3e62b6ab342250a3c1e6a35bdfffab21ce1647517b08e5535cd02c1de5c40eb"
+      },
+      "sensor_packets": null,
+      "manifest_sha256": "4697b39d353d9f022058ade9d39a857fa34e9f3bae1533d00618cf0c942496e4",
+      "output_sha256": {
+        "observable.csv": "b00bfd422151a28e66fa254dbdb35918503d24857ed8b2f2e8f23d90920fabb7",
+        "run.csv": "284f7768c18e1998e73da098448ff30c0efd15c33bd55473c3a460b5b688727f",
+        "run.vs": "a26926dd4afb27c4e6d9a21c34c51d4f9946a4d4a0a6d8a5eb1dbdb1f8ab35fb",
+        "run_all.par": "43a076419c823a49e0fe227bebabbb7e674e7479b2f796f7fd066a6d23c0da37",
+        "run_echo.par": "e502977aa8134106c69e8905c45b382e7c5c6ee7fb891bfb3a62cb1c4db42a9e",
+        "run_end.par": "e4e8be4f8e5d1ede6de8221f7449bf36e49b5ea74822ea36235dbeb26b8eea88",
+        "run_log.txt": "6256e9eafdb360d0869aef8787105885d24c83b8a87e5a47ed03c4cb312f46dd",
+        "solver_stdout.txt": "390d0092ee1826011a944ae12759c69aa23b32b5906c2594fe4ae7eb8aa898f9",
+        "truth.csv": "441fc7ae09b2f23f90171cc72269bab05fade69e2b16c10de29330ff421a4913"
+      }
+    },
+    {
+      "experiment": {
+        "schema_version": 1,
+        "experiment": {
+          "id": "mass_cg_inertia_data_dt0005",
+          "seed": 102
+        },
+        "vehicle": {
+          "base": "distributed_ev"
+        },
+        "simulation": {
+          "duration": 30.0,
+          "dt": 0.0005
+        },
+        "road": {
+          "mu": 0.9
+        },
+        "vehicle_parameters": {
+          "sprung_mass_kg": 1390.0,
+          "cg_x_m": 0.915,
+          "cg_y_m": 0.05,
+          "cg_z_m": 0.54,
+          "izz_kgm2": 1700.0
+        },
+        "maneuver": {
+          "speed_kmh": [
+            [
+              0,
+              35
+            ],
+            [
+              10,
+              55
+            ],
+            [
+              20,
+              45
+            ],
+            [
+              30,
+              35
+            ]
+          ],
+          "steering_deg": [
+            [
+              0,
+              0
+            ],
+            [
+              10,
+              5
+            ],
+            [
+              20,
+              -5
+            ],
+            [
+              30,
+              0
+            ]
+          ]
+        },
+        "outputs": {
+          "estimator": [
+            "Vx",
+            "Ax",
+            "Ay",
+            "AVz",
+            "My_Dr_L1",
+            "My_Dr_R1",
+            "My_Dr_L2",
+            "My_Dr_R2",
+            "AV_Mt_D1_L",
+            "Roll",
+            "Pitch"
+          ],
+          "evaluator": [
+            "Vy",
+            "Fz_L1",
+            "Fz_R1",
+            "Fz_L2",
+            "Fz_R2"
+          ]
+        },
+        "validation": {
+          "minimum_speed_mps": 1.0
+        }
+      },
+      "status": "passed",
+      "validation": {
+        "passed": true,
+        "samples": 60001,
+        "final_time_s": 29.99999999998,
+        "echo_parameters": {
+          "M_SU": 1390.0,
+          "LX_CG_SU": 915.0,
+          "Y_CG_SU": 50.0,
+          "H_CG_SU": 540.0,
+          "IZZ_SU": 1700.0,
+          "TSTEP": 0.0005,
+          "TSTOP": 30.0,
+          "IPRINT": 1.0
+        },
+        "minimum_speed_mps": 1.0
+      },
+      "base_sha256": "74d9245e4b89cab1503d4b2947611342892bae8f4a27678ebfbc9a38deac208e",
+      "carsim_version": "2024.0",
+      "powertrain": "C-Class Hatchback #1 / 10kW x4 Electric AWD / 3.905 ratio",
+      "runtime_sha256": {
+        "cli": "375d38388c5febbeb55b886e691228ae82a9b87816e0dc4dff7f45e4fd099cd3",
+        "dll": "9460911ba689e398ca4e2a6a509743cab929770475ec92a76509c941b0581252"
+      },
+      "source_sha256": {
+        "scripts\\carsim_batch.py": "f5b284735713c2a6c6dcd310b02d5204a6093e0c602e4e01176b3f03ed831f4c",
+        "scripts\\dump_dll_exports.py": "0a0197eefa87b2accfe2332d219572c7c7d463f772a097f13c3fe1ecc0d0492b",
+        "scripts\\experiment_runner.py": "86388eaef05fd3f50f4f18c8a2d17d53d438e0c551c987c88e21edfff94f0e5d",
+        "scripts\\result_contract.py": "9341537b87cf04f9789de3c24930acbf039db03bed6af3e8f5b30dbe02771161",
+        "scripts\\scenario_schema.py": "86e6737e30e70b009ab28b44457258f3cadedc2451f26f7f8d70a21a050c974a",
+        "scripts\\sensor_replay.py": "b42553190014122cd61cf4d43229b607c0c8a768a457e14aebc14b46b9d8962f",
+        "scripts\\setup_paths.py": "fd78099b182e4e487994a9c4a4e677d1758053c37d7de1085a85f4e65a5bd96c",
+        "scripts\\validate_run.py": "b8324031ebb9cf048a4956d102668a8d55f3d6ea080a8d25e0aa5b182afe8c77",
+        "scripts\\vehicle_registry.py": "9796a40154944a33d3ad8606865978b4ce19884a5217cf6cbe935a12719676f7",
+        "schemas\\experiment.schema.json": "e287ecd3edb701b677e04afc902f8beb90431952ffc2b3c1c3b88d53c4050283",
+        "tests\\functional_carsim.py": "846fc445fbe5d5f81cf2c50f153387e317cac7146dacec2d1e673acb9f8276b9",
+        "tests\\test_carsim_batch.py": "21aca6d003d6d4c40d4f8d62cc17047872728f52afaba99eca3477e1ddd51757",
+        "tests\\test_research_contract.py": "17e94fa5af8e7cbfd9602e043d65cc125a93b9481aeb70a7091e3b01a992a46b",
+        "tests\\test_setup_paths.py": "9750bb0baf707b071c9cd17c3a544ac64b338049bd86995ad986b88cd4b7a21b",
+        "examples\\basic_run.yaml": "5150f627570fce03df01104e855a56b9f5c39ab89e96a2226c9c002ead5d54b9",
+        "examples\\parameter_sweep.yaml": "b402456b2fedd13936b076e492caa9c6cb87c96853c32da88597f2bce8e8de70",
+        "examples\\tire_force_estimation.yaml": "d682640a9aae00c95d54aa1cf3ac855b2cb02956415c452a247d0ca2630815f3",
+        "examples\\vehicle_parameter_id.yaml": "f3e62b6ab342250a3c1e6a35bdfffab21ce1647517b08e5535cd02c1de5c40eb"
+      },
+      "sensor_packets": null,
+      "manifest_sha256": "ec677634dbfaf956b6be739fc82dc88e1cfc3d34c10dcde42d4504f27c631431",
+      "output_sha256": {
+        "observable.csv": "c9d10e7fc078d980c860cd72dbd4d44fd73b640774111fbc34423fb134f1ef37",
+        "run.csv": "f1da37e28d470c82fd289c747d4a4950c4094a73494764bf4b8f63d3e544d57c",
+        "run.vs": "b7e2fe87e6d598333588cbf4c3e868d310cc572cd99917e9760c6f498782bcb2",
+        "run_all.par": "c1d1137513893c1ade6e1f949314a442c28a2d6381bc7441bcfda1245dfe48b7",
+        "run_echo.par": "e06ac907547e3b0d178e94250df1cdbddaa12692c50d7594f9e125a9713437c1",
+        "run_end.par": "328c3d2a9e899ee01fdd6c45092deb3ca3a3aeb9239194fb8664688fdf1dc589",
+        "run_log.txt": "d0cbeac6b96a1399182895831d96195c92d802c070fe8f8cfd9af1080ca6f51a",
+        "solver_stdout.txt": "273813a06cd34d88c1cd2a36963d7a560d8b9a6329b87e2c3e4c4ddbe21a7d8d",
+        "truth.csv": "7581154d75ee20e8981309fee344d26b549e40f6e1b56045ef3eedaf28b041b3"
+      }
+    },
+    {
+      "experiment": {
+        "schema_version": 1,
+        "experiment": {
+          "id": "tire_force_data",
+          "seed": 101
+        },
+        "vehicle": {
+          "base": "distributed_ev"
+        },
+        "simulation": {
+          "duration": 30.0,
+          "dt": 0.001
+        },
+        "road": {
+          "mu": 0.8
+        },
+        "maneuver": {
+          "speed_kmh": [
+            [
+              0,
+              40
+            ],
+            [
+              15,
+              60
+            ],
+            [
+              30,
+              40
+            ]
+          ],
+          "steering_deg": [
+            [
+              0,
+              0
+            ],
+            [
+              10,
+              5
+            ],
+            [
+              20,
+              -5
+            ],
+            [
+              30,
+              0
+            ]
+          ]
+        },
+        "outputs": {
+          "estimator": [
+            "Ax",
+            "Ay",
+            "AVz",
+            "AVy_L1",
+            "AVy_R1",
+            "AVy_L2",
+            "AVy_R2",
+            "My_Dr_L1",
+            "My_Dr_R1",
+            "My_Dr_L2",
+            "My_Dr_R2"
+          ],
+          "evaluator": [
+            "Vx",
+            "Vy",
+            "Fx_L1",
+            "Fx_R1",
+            "Fx_L2",
+            "Fx_R2",
+            "Fy_L1",
+            "Fy_R1",
+            "Fy_L2",
+            "Fy_R2",
+            "Fz_L1",
+            "Fz_R1",
+            "Fz_L2",
+            "Fz_R2"
+          ]
+        },
+        "sensors": {
+          "accelerometer": {
+            "channels": [
+              "Ax",
+              "Ay"
+            ],
+            "sample_hz": 100,
+            "noise_std": 0.03,
+            "latency_s": 0.01
+          },
+          "gyro": {
+            "channels": [
+              "AVz"
+            ],
+            "sample_hz": 100,
+            "noise_std": 0.002,
+            "latency_s": 0.01
+          },
+          "wheel_speed": {
+            "channels": [
+              "AVy_L1",
+              "AVy_R1",
+              "AVy_L2",
+              "AVy_R2"
+            ],
+            "sample_hz": 100,
+            "noise_std": 0.05,
+            "quantization": 0.01
+          },
+          "drive_torque": {
+            "channels": [
+              "My_Dr_L1",
+              "My_Dr_R1",
+              "My_Dr_L2",
+              "My_Dr_R2"
+            ],
+            "sample_hz": 100,
+            "noise_std": 1.0,
+            "jitter_s": 0.002,
+            "drop_probability": 0.01
+          }
+        }
+      },
+      "status": "passed",
+      "validation": {
+        "passed": true,
+        "samples": 30001,
+        "final_time_s": 30.00000000001,
+        "echo_parameters": {
+          "TSTEP": 0.001,
+          "TSTOP": 30.0,
+          "IPRINT": 1.0
+        },
+        "minimum_speed_mps": null
+      },
+      "base_sha256": "74d9245e4b89cab1503d4b2947611342892bae8f4a27678ebfbc9a38deac208e",
+      "carsim_version": "2024.0",
+      "powertrain": "C-Class Hatchback #1 / 10kW x4 Electric AWD / 3.905 ratio",
+      "runtime_sha256": {
+        "cli": "375d38388c5febbeb55b886e691228ae82a9b87816e0dc4dff7f45e4fd099cd3",
+        "dll": "9460911ba689e398ca4e2a6a509743cab929770475ec92a76509c941b0581252"
+      },
+      "source_sha256": {
+        "scripts\\carsim_batch.py": "f5b284735713c2a6c6dcd310b02d5204a6093e0c602e4e01176b3f03ed831f4c",
+        "scripts\\dump_dll_exports.py": "0a0197eefa87b2accfe2332d219572c7c7d463f772a097f13c3fe1ecc0d0492b",
+        "scripts\\experiment_runner.py": "86388eaef05fd3f50f4f18c8a2d17d53d438e0c551c987c88e21edfff94f0e5d",
+        "scripts\\result_contract.py": "9341537b87cf04f9789de3c24930acbf039db03bed6af3e8f5b30dbe02771161",
+        "scripts\\scenario_schema.py": "86e6737e30e70b009ab28b44457258f3cadedc2451f26f7f8d70a21a050c974a",
+        "scripts\\sensor_replay.py": "b42553190014122cd61cf4d43229b607c0c8a768a457e14aebc14b46b9d8962f",
+        "scripts\\setup_paths.py": "fd78099b182e4e487994a9c4a4e677d1758053c37d7de1085a85f4e65a5bd96c",
+        "scripts\\validate_run.py": "b8324031ebb9cf048a4956d102668a8d55f3d6ea080a8d25e0aa5b182afe8c77",
+        "scripts\\vehicle_registry.py": "9796a40154944a33d3ad8606865978b4ce19884a5217cf6cbe935a12719676f7",
+        "schemas\\experiment.schema.json": "e287ecd3edb701b677e04afc902f8beb90431952ffc2b3c1c3b88d53c4050283",
+        "tests\\functional_carsim.py": "846fc445fbe5d5f81cf2c50f153387e317cac7146dacec2d1e673acb9f8276b9",
+        "tests\\test_carsim_batch.py": "21aca6d003d6d4c40d4f8d62cc17047872728f52afaba99eca3477e1ddd51757",
+        "tests\\test_research_contract.py": "17e94fa5af8e7cbfd9602e043d65cc125a93b9481aeb70a7091e3b01a992a46b",
+        "tests\\test_setup_paths.py": "9750bb0baf707b071c9cd17c3a544ac64b338049bd86995ad986b88cd4b7a21b",
+        "examples\\basic_run.yaml": "5150f627570fce03df01104e855a56b9f5c39ab89e96a2226c9c002ead5d54b9",
+        "examples\\parameter_sweep.yaml": "b402456b2fedd13936b076e492caa9c6cb87c96853c32da88597f2bce8e8de70",
+        "examples\\tire_force_estimation.yaml": "d682640a9aae00c95d54aa1cf3ac855b2cb02956415c452a247d0ca2630815f3",
+        "examples\\vehicle_parameter_id.yaml": "f3e62b6ab342250a3c1e6a35bdfffab21ce1647517b08e5535cd02c1de5c40eb"
+      },
+      "sensor_packets": {
+        "accelerometer": 3001,
+        "drive_torque": 2971,
+        "gyro": 3001,
+        "wheel_speed": 3001
+      },
+      "manifest_sha256": "3f5bb5d10743a62734796984df71ed52a745044cf4b4e5bb7bf65b732d85b5ab",
+      "output_sha256": {
+        "observable.csv": "182868accd46fe23009c9d056c682c716a9c254036244e21fc2029c1ecf898ff",
+        "run.csv": "b196555899ae84a9662c8db4b03534e177aec52cf2a82a3eb2e2a84622e46427",
+        "run.vs": "022b3e523a60cf51c91a0cbe624559f53940fc5417ab05b560e57b64ba02d84e",
+        "run_all.par": "e7d1ecc537fd82b620da9dfe170fab9cf24a9e3fe3344717c2cac1797318f79b",
+        "run_echo.par": "0e11b4a6c122066f737a70c399ec005a28d717b9aaa34d51a26b2364538fe866",
+        "run_end.par": "038c8e02d080189d5eb1937b74c6e9e28b3f89dff3f08d5aeb9da078b0837a8d",
+        "run_log.txt": "1796507417228b90cdb5f2840610af409833e1730abacc1c457f0614312a4eab",
+        "sensor_accelerometer.csv": "585ce9ca7edc9415e143daf0c14d50df77594bfb3d09d48d8485af2fd6ff468a",
+        "sensor_drive_torque.csv": "c8c33b9720f36b65ba911fddb650c8885e8dbdd332415a36527ff1a26798da82",
+        "sensor_gyro.csv": "805c778826c37f5528054d9da98c4d3f911cb6fa5abf644b2ccfd6b447fc8836",
+        "sensor_wheel_speed.csv": "453f546648301ac4d5e25d29f16aa094df6894bc4b137e98a26a1ce34a6595cb",
+        "solver_stdout.txt": "82b5e85483de1bcb13afbed8c63352d2f350eb913e36da17b76ffc063ec5dd4b",
+        "truth.csv": "524277334330fd7aa07d5c111664e4918343b0018d7284011d3e9c701a0b6c3b"
+      }
+    }
+  ],
+  "rejected_experiments": [
+    {
+      "experiment": {
+        "schema_version": 1,
+        "experiment": {
+          "id": "mass_cg_inertia_data",
+          "seed": 102
+        },
+        "vehicle": {
+          "base": "distributed_ev"
+        },
+        "simulation": {
+          "duration": 30.0,
+          "dt": 0.005
+        },
+        "road": {
+          "mu": 0.9
+        },
+        "vehicle_parameters": {
+          "sprung_mass_kg": 1390.0,
+          "cg_x_m": 0.915,
+          "cg_y_m": 0.05,
+          "cg_z_m": 0.54,
+          "izz_kgm2": 1700.0
+        },
+        "maneuver": {
+          "speed_kmh": [
+            [
+              0,
+              35
+            ],
+            [
+              10,
+              55
+            ],
+            [
+              20,
+              45
+            ],
+            [
+              30,
+              35
+            ]
+          ],
+          "steering_deg": [
+            [
+              0,
+              0
+            ],
+            [
+              10,
+              5
+            ],
+            [
+              20,
+              -5
+            ],
+            [
+              30,
+              0
+            ]
+          ]
+        },
+        "outputs": {
+          "estimator": [
+            "Vx",
+            "Ax",
+            "Ay",
+            "AVz",
+            "My_Dr_L1",
+            "My_Dr_R1",
+            "My_Dr_L2",
+            "My_Dr_R2",
+            "AV_Mt_D1_L",
+            "Roll",
+            "Pitch"
+          ],
+          "evaluator": [
+            "Vy",
+            "Fz_L1",
+            "Fz_R1",
+            "Fz_L2",
+            "Fz_R2"
+          ]
+        },
+        "validation": {
+          "minimum_speed_mps": 1.0
+        }
+      },
+      "status": "failed",
+      "error": "RuntimeError: solver failed (returncode 1).\n--- output tail ---\nLoaded <PROG>\\Programs\\solvers\\carsim_64.dll\n=CarSim 2024.0\nVehicle Configuration: I_I\nRevision 215409, December 12, 2023\n\nBaseline <* * Quick Start Guide Example>\n\n\nError: S and L values for path #1013 could not be calculated. Best estimate: S = 9.70009e+17 and L = -6.96753e+17 when X = -9.70045e+17 and Y = 6.96703e+17. This often happens because the model has crashed for other reasons.\nError writing to: Runs\\animator.par\nWriting animator.par to current working directory\nCould not write animator.par to current working directory",
+      "manifest_sha256": "836d84e82b63c3d3dfae77ca88b6c86dd1b72063a1bc81b4b86c0aad95a56082",
+      "source_sha256": {
+        "scripts\\carsim_batch.py": "f5b284735713c2a6c6dcd310b02d5204a6093e0c602e4e01176b3f03ed831f4c",
+        "scripts\\dump_dll_exports.py": "0a0197eefa87b2accfe2332d219572c7c7d463f772a097f13c3fe1ecc0d0492b",
+        "scripts\\experiment_runner.py": "86388eaef05fd3f50f4f18c8a2d17d53d438e0c551c987c88e21edfff94f0e5d",
+        "scripts\\result_contract.py": "9341537b87cf04f9789de3c24930acbf039db03bed6af3e8f5b30dbe02771161",
+        "scripts\\scenario_schema.py": "86e6737e30e70b009ab28b44457258f3cadedc2451f26f7f8d70a21a050c974a",
+        "scripts\\sensor_replay.py": "b42553190014122cd61cf4d43229b607c0c8a768a457e14aebc14b46b9d8962f",
+        "scripts\\setup_paths.py": "fd78099b182e4e487994a9c4a4e677d1758053c37d7de1085a85f4e65a5bd96c",
+        "scripts\\validate_run.py": "b8324031ebb9cf048a4956d102668a8d55f3d6ea080a8d25e0aa5b182afe8c77",
+        "scripts\\vehicle_registry.py": "9796a40154944a33d3ad8606865978b4ce19884a5217cf6cbe935a12719676f7",
+        "schemas\\experiment.schema.json": "e287ecd3edb701b677e04afc902f8beb90431952ffc2b3c1c3b88d53c4050283",
+        "tests\\functional_carsim.py": "846fc445fbe5d5f81cf2c50f153387e317cac7146dacec2d1e673acb9f8276b9",
+        "tests\\test_carsim_batch.py": "21aca6d003d6d4c40d4f8d62cc17047872728f52afaba99eca3477e1ddd51757",
+        "tests\\test_research_contract.py": "17e94fa5af8e7cbfd9602e043d65cc125a93b9481aeb70a7091e3b01a992a46b",
+        "tests\\test_setup_paths.py": "9750bb0baf707b071c9cd17c3a544ac64b338049bd86995ad986b88cd4b7a21b",
+        "examples\\basic_run.yaml": "5150f627570fce03df01104e855a56b9f5c39ab89e96a2226c9c002ead5d54b9",
+        "examples\\parameter_sweep.yaml": "b402456b2fedd13936b076e492caa9c6cb87c96853c32da88597f2bce8e8de70",
+        "examples\\tire_force_estimation.yaml": "d682640a9aae00c95d54aa1cf3ac855b2cb02956415c452a247d0ca2630815f3",
+        "examples\\vehicle_parameter_id.yaml": "f3e62b6ab342250a3c1e6a35bdfffab21ce1647517b08e5535cd02c1de5c40eb"
+      }
+    }
+  ],
+  "functional_requested": true,
+  "recorder_sha256": "085d9f06c1f1fd6741e20f1bdc21a34ed0645ee3e7aff99043a342bae102e3cf",
+  "manual_trigger_evals": "not_run; see evals.json protocol"
+}

@@ -69,33 +69,39 @@ def main():
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(levelname)s %(name)s: %(message)s")
 
+    args.out = os.path.abspath(args.out)
     os.makedirs(args.out, exist_ok=True)
     # OPT_SC 0: open loop (torque imports are the only drive); initial speed
     # from standstill, built up by the speed PI itself
-    open(os.path.join(args.out, "override.par"), "w", newline="\n").write(
-        cb.override_par(args.base, args.tstop,
-                        [(0, 0), (args.tstop, 0)],
-                        [(0, 0), (args.tstop, 0)],
-                        extra_lines=EXTRA_LINES + ["OPT_SC 0"]))
-    sim = cb.simfile(args.out, args.prog, args.datadir)
+    simulation = cb.SimulationConfig(dt=0.001, duration=args.tstop)
+    sim_path = cb.make_scenario(
+        args.out, args.base, args.prog, args.datadir, config=simulation,
+        speed_rows=[(0, 0), (args.tstop, 0)],
+        steer_rows=[(0, 0), (args.tstop, 0)], unsafe_extra_lines=EXTRA_LINES + ["OPT_SC 0"])
+    with open(sim_path, encoding="utf-8") as source:
+        sim = source.read()
     sim = sim.replace("PORTS_IMP 0", "PORTS_IMP 1,4")
     sim = sim.replace("PORTS_EXP 0", "PORTS_EXP 1,4")
-    open(os.path.join(args.out, "simfile.sim"), "w", newline="\n").write(sim)
+    open(os.path.join(args.out, "simfile.sim"), "w", newline="\n", encoding="utf-8").write(sim)
     logger.info("co-sim inputs written to %s", args.out)
 
     solver_matlab = os.path.join(args.prog, "Programs", "solvers", "Matlab")
     scripts_dir = os.path.dirname(cb.__file__)
     cmd = [args.matlab, "-batch",
-           "addpath('%s'); addpath('%s'); tv_cosim('%s', '%s')"
+           "addpath('%s'); addpath('%s'); tv_cosim('%s', '%s', %.17g, %.17g)"
            % (solver_matlab.replace("\\", "/"), scripts_dir.replace("\\", "/"),
-              args.out.replace("\\", "/"), solver_matlab.replace("\\", "/"))]
+              args.out.replace("\\", "/"), solver_matlab.replace("\\", "/"),
+              simulation.duration, simulation.dt)]
     logger.info("launching MATLAB ...")
     proc = subprocess.run(cmd, capture_output=True, text=True,
                           timeout=900, encoding="utf-8", errors="replace")
-    tail = "\n".join((proc.stdout or "").splitlines()[-6:])
+    combined = (proc.stdout or "") + (proc.stderr or "")
+    with open(os.path.join(args.out, "matlab_output.txt"), "w", encoding="utf-8") as log:
+        log.write(combined)
+    tail = "\n".join(combined.splitlines()[-20:])
     logger.info("MATLAB tail:\n%s", tail)
     if proc.returncode != 0 or "DONE" not in (proc.stdout or ""):
-        raise RuntimeError("MATLAB co-sim failed (see tail above)")
+        raise RuntimeError("MATLAB co-sim failed (returncode %s; see matlab_output.txt)" % proc.returncode)
 
     df = pd.read_csv(os.path.join(args.out, "cosim_results.csv"),
                      names=["t", "vx_kmh", "avz_degs", "yo_m",

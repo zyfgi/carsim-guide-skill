@@ -1,6 +1,6 @@
 ---
 name: carsim-guide
-description: Run and control CarSim 2024.0 headless from scripts or agents - generate scenarios (speed/steering/friction/payloads), drive with open-loop inputs or per-wheel torque (torque vectoring, TCS), co-simulate with Simulink, and read SI-unit results. Field-tested; no GUI after a one-time base setup, no MCP required. Use for ANY CarSim task - headless/batch runs, VS solver CLI, override.par/simfile workflows, vehicle or dataset changes, CarSim-Simulink co-simulation, FSAE-style events (acceleration, braking) - but not for generic CSV/pandas work or other simulators.
+description: Operate and automate CarSim simulations from an agent - configure and run headless scenarios, modify vehicle and road parameters, execute reproducible experiments, read VehicleSim results, control per-wheel torques, and run CarSim-Simulink co-simulation. Use for executing, configuring, debugging, or programmatically automating CarSim. Do not use for generic vehicle-dynamics theory, generic pandas work, or unrelated simulators.
 ---
 
 # CarSim 2024.0 Runtime Mechanics & Operation Guide (field-verified)
@@ -13,6 +13,8 @@ Updated 2026-09-14. Everything marked "verified" ran for real — the checks shi
 |---|---|
 | First task on a machine (or CarSim moved) | `scripts/setup_paths.py` — one-time discovery, caches install paths (§1) |
 | Build/modify scenarios (tables, params, payloads) | §3 + §5; script API in §4 |
+| Research datasets, parameter identification, PINN/EKF inputs | `references/research-experiments.md` → `scripts/experiment_runner.py` |
+| Sensor availability, truth isolation, SI units | `references/channel-registry.md` + `references/estimator-validation.md` |
 | Extend or debug the Python workflow | `references/python-interface.md` |
 | Open-loop throttle/brake, torque imports, table replace/append rules | `references/advanced-controls.md` |
 | Close the loop in Simulink (co-sim) | `references/simulink-cosim.md` + `scripts/cosim_model.m`, `scripts/tv_cosim.m` |
@@ -27,15 +29,15 @@ Updated 2026-09-14. Everything marked "verified" ran for real — the checks shi
 
 ## 0. Quick start (fresh machine → first successful run)
 
-0. **Discover & cache the install** (once per machine): `python scripts/setup_paths.py` — finds PROG / DATADIR / the newest GUI-expanded base, verifies CLI + 64-bit DLL, caches to `~/.carsim_guide_paths.json` (~1 s; `--json` prints a compact summary for later sessions).
+0. **Discover & cache the install** (once per machine): `python scripts/setup_paths.py` — finds PROG / DATADIR and lists candidate bases; verifies Data, CLI and DLL; caches paths to `~/.carsim_guide_paths.json` (`--json` prints a compact summary).
 1. **License**: keep the CarSim GUI open, or start `<PROG>\Programs\cslm.exe`.
-2. **Get a base (once per vehicle — the ONLY GUI step)**: open a Run Control → **Run Math Model** → take `Results\Run_<uuid>\Run_all.par` (setup_paths.py auto-picks the newest).
+2. **Get a base (once per vehicle — the ONLY GUI step)**: open a Run Control → **Run Math Model** → take `Results\Run_<uuid>\Run_all.par`. Check vehicle/Run Control identity, then explicitly bind with `python scripts/setup_paths.py --set base_run_all="<absolute path>"`. Research runs use a named vehicle registry with SHA256 instead (see research reference); never choose by modification time.
 3. **First run** (65 s straight cruise at 50 km/h) — no path arguments needed:
    ```
    python scripts/carsim_batch.py --out <scenario dir> \
        --tstop 65 --speed-profile "0:50,65:50" --run --read
    ```
-4. **Acceptance**: stdout ends with `Termination at simulation time = 65 s`; `<out>/run.csv` exists (1 kHz CSV).
+4. **Smoke acceptance**: stdout ends with `Termination at simulation time = 65 s`; `<out>/run.csv` exists. Research acceptance additionally requires `validate_run`: fresh CSV/echo, finite complete time grid, required channels and requested parameter echo; use the experiment runner.
 
 Daily runs end here — no GUI, no database writes, no Simulink, no C API.
 
@@ -52,7 +54,7 @@ Daily runs end here — no GUI, no database writes, no Simulink, no C API.
 | `cli_solver` | `<PROG>\Programs\VS_SolverWrapper_CLI_64.exe` |
 | `solver_dll` | `<PROG>\Programs\solvers\carsim_64.dll` (64-bit; full VS C API, 300+ symbols) |
 | `license_manager` | GUI running, or `<PROG>\Programs\cslm.exe` headless |
-| `base_run_all` | newest `<DATADIR>\Results\Run_*\Run_all.par` (+ `other_bases` list) |
+| `base_run_all` | explicitly selected base, `base_sha256` + `base_selection`; `other_bases` lists candidates only |
 | `matlab` | optional — Simulink co-sim examples |
 
 **Flow**: first task on a machine → run `scripts/setup_paths.py`. Every later session resolves paths automatically (explicit argument > env `CARSIM_PROG`/`CARSIM_DATADIR`/`CARSIM_BASE` > cache) — all scripts and examples just work, and `python scripts/setup_paths.py --json` re-prints the cached paths in one line. **Never grep the filesystem for CarSim paths again**: if a run fails on paths, re-run setup (it revalidates the cache), fix one key with `--set prog=…`, or rescan with `--refresh` / reset with `--forget`.
@@ -86,12 +88,12 @@ MU_ROAD_CARPET 2D_STEP                          ! friction override (low-mu base
   <s, mu_left, mu_right rows> ENDTABLE
 OPT_DM 0 / OPT_STR_BY_TRQ 0 / STEER_SW_TABLE    ! open-loop steering — the ONLY reliable steering override
   <rows: time s, SW angle deg> ENDTABLE
-<extra_lines: parameter overrides, e.g. M_SU / Y_CG_SU / IZZ_SU / RRE>
+<typed VehicleOverrides, or unsafe_extra_lines for advanced syntax>
 WRT_<channel> ...                               ! output whitelist
 LOG_ENTRY / END
 ```
 
-**simfile** (§3.2): `FILEBASE/INPUT/INPUTARCHIVE/ECHO/FINAL/LOGFILE/ERDFILE` + `PROGDIR/DATADIR/PRODUCT_ID CarSim/PRODUCT_VER 2024.0/VEHICLE_CODE i_i/EXT_MODEL_STEP/PORTS_IMP 0/PORTS_EXP 0/DLLFILE …\carsim_64.dll` (**always pin 64-bit**; GUI files may say 32-bit) + `END`. Exact template: `carsim_batch.simfile()`.
+**simfile** (§3.2): `FILEBASE/INPUT/INPUTARCHIVE/ECHO/FINAL/LOGFILE/ERDFILE` + `PROGDIR/DATADIR/PRODUCT_ID CarSim/PRODUCT_VER/VEHICLE_CODE i_i/EXT_MODEL_STEP/PORTS_IMP 0/PORTS_EXP 0/DLLFILE …\carsim_64.dll` (**always pin 64-bit**; GUI files may say 32-bit) + `END`. Version comes from a standard install directory name or explicit `product_version`; unknown versions fail instead of defaulting to 2024.0. `make_scenario(config=SimulationConfig(...))` uses the same dt for both generated files.
 
 **Run** (§3.3): `"<PROG>\Programs\VS_SolverWrapper_CLI_64.exe" -sim <simfile>`. Success = stdout `Termination at simulation time = <TSTOP>` (RTIME lands in run_log.txt / run_end.par). Forward slashes on the command line — backslash escaping in Git Bash fails silently.
 
@@ -104,10 +106,12 @@ LOG_ENTRY / END
 | API | Purpose |
 |---|---|
 | `scripts/setup_paths.py` | one-time install discovery → `~/.carsim_guide_paths.json`; later calls (`--json`) re-print it in one line |
-| `make_scenario(out_dir, base_run_all=None, prog=None, datadir=None, tstop=65, speed_rows=None, steer_rows=None, mu=0.9, extra_lines=())` | writes override.par + simfile.sim, returns simfile path; path arguments default to the §1 cache; `extra_lines` injects parameter overrides (static payloads) |
+| `make_scenario(..., config=SimulationConfig(dt, duration), vehicle_overrides=VehicleOverrides(...))` | writes override.par + simfile.sim from one timing config; legacy tstop/tstep accepted only without config; advanced syntax uses `unsafe_extra_lines` |
 | `run_solver(simfile_path, prog=None, timeout=600)` | subprocess CLI call (argv list + forward slashes), success-judged, raises with output tail; `prog` defaults to the cache |
-| `read_run_csv(path, columns=None)` | pandas → **SI-unit** DataFrame (auto-drops unreliable columns, respects requested order) |
-| `si_scale(col)` / `summarize(df)` / constants | column→SI factor (exact/underscore-delimited match); stats; `OUTPUTS_*`, `TRUTH_ONLY_PREFIXES`, `UNRELIABLE_COLS` |
+| `load_run(path, estimator_channels=...)` | SI `observable`, `truth`, `metadata`; `estimator_view()` rejects truth and excludes channels outside the experiment whitelist |
+| `read_run_csv(path, columns=None, allow_truth=False)` | default observable-only compatibility reader; evaluator must opt in with `allow_truth=True`; unknown units and missing requested channels fail |
+| `experiment_runner.py scenario.yaml --registry vehicles.json --out runs [--run]` | typed schema → pinned base → manifest → optional solver, validation and sensor packets |
+| `si_scale(col)` / `summarize(df)` / constants | column→SI factor (explicit registry lookup); stats; `OUTPUTS_*`, `TRUTH_ONLY_PREFIXES`, `UNRELIABLE_COLS` |
 
 CLI: `--out --tstop --speed-profile "t:v,…" --steer-profile "t:v,…" --mu --run --read --verbose` (`--prog --datadir --base` optional — §1 cache defaults). Runnable demos: `examples/param_sweep.py` (batch sweep), `examples/simulink_cosim.py`, `examples/torque_vectoring.py` (all resolve paths from the cache too; Simulink ones also take `--matlab`, cached as `matlab`).
 
@@ -115,13 +119,13 @@ CLI: `--out --tstop --speed-profile "t:v,…" --steer-profile "t:v,…" --mu --r
 
 ## 5. Output channels and units (verified)
 
-Recommended WRT set (`OUTPUTS_CORE/EXTRA` in the script): cg states (`Vx Vy Ax Ay AVz`), per-corner road-wheel steer + wheel speeds + drive/brake torques (`Steer_/AVy_/My_Dr_/My_Bk_{L1,R1,L2,R2}`), tire truths (`Fx_/Fy_/Fz_/Kappa_/Alpha_`), `ROLL PITCH`, motor speeds `AV_Mt_D1_*/D2_*`. Useful base columns: `Xo Yo Yaw Station Throttle SocBttry`.
+The registry in `scripts/result_contract.py` defines supported channels, units and roles. Default generation excludes tire truth; request evaluator channels explicitly. Observable means sensor-eligible, not necessarily measured on your vehicle: declare an estimator whitelist for each experiment. Unregistered channels (including Throttle/SocBttry until their source units are verified) fail closed.
 
 **Unreliable**: `Lat_Veh`/`Lat_Targ` drift (up to 15 m) — lateral position from `Yo/Yaw`. **Slip quirk**: `Kappa_*` has a t≈0 normalization spike after a standing start (identical regardless of friction) — exclude t < 0.5 s when comparing slip.
 
-Units → SI (built into `read_run_csv`): Vx/Vy km/h÷3.6; Ax/Ay **g**×9.81; AVz/angles deg×π/180; AVy_* **rpm**×2π/60; forces/torques already SI. Signs (verified): left turn → AVz>0; My_Dr + = drive, − = regen; My_Bk ≤ 0 forward. Corners: L1=FL, R1=FR, L2=RL, R2=RR.
+Units → SI: Vx/Vy km/h÷3.6; Ax/Ay **g**×9.80665; AVz/angles deg×π/180; wheel AVy_* and motor AV_Mt_* **rpm**×2π/60; forces/torques already SI. See `references/channel-registry.md` for scope. Signs (verified): left turn → AVz>0; My_Dr + = drive, − = regen; My_Bk ≤ 0 forward. Corners: L1=FL, R1=FR, L2=RL, R2=RR.
 
-**Parameter overrides** (§5.3, via `extra_lines`): `M_SU <kg>`, `IZZ_SU <kg·m²>`, `LX_CG_SU/H_CG_SU/Y_CG_SU <mm>`, `RRE/R0(axle,side) <mm>`. **Y_CG_SU quirk (A/B/C/D verified)**: static left-right load split is exactly linear in the value but ≈**2.07×** the naive rigid prediction; ground-truth lateral CG = the `Y_CG_TL` (CALC) line in `run_echo.par` — never invert the Fz split naively.
+**Parameter overrides**: prefer `VehicleOverrides(sprung_mass_kg=..., cg_x_m=..., cg_y_m=..., cg_z_m=..., izz_kgm2=...)`; metres convert internally to CarSim mm. Sprung mass is not total vehicle mass; sprung-body CG is not total vehicle CG. Radius and advanced keywords remain in `unsafe_extra_lines` (old `extra_lines` is deprecated). **Y_CG_SU quirk (A/B/C/D verified)**: static left-right load split was ≈**2.07×** the naive rigid prediction on the tested base; ground-truth lateral CG is `Y_CG_TL` (CALC) in the echo. This factor is not universal.
 
 **Advanced controls** (§5.4): open-loop throttle/brake (`OPT_SC 0` — standstill start), per-wheel torque imports (GUI-native `Add 0.0! 1` form — `VS_REPLACE` is inert with ports active), table replace-vs-append rules — all in `references/advanced-controls.md`.
 

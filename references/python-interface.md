@@ -1,8 +1,8 @@
 # Python Interface Walkthrough (scripts/carsim_batch.py)
 
-This document walks through the design and evidence behind `scripts/carsim_batch.py`. All conclusions are field-verified (multi-scenario batch runs succeeded, RTIME≈0.05, roughly 17× real time; performance varies by machine).
+This document walks through the design and evidence behind `scripts/carsim_batch.py`. The original runtime mechanics were field-tested on CarSim 2024.0. Research APIs and their verification evidence are documented in research-experiments.md and evals/results/.
 
-**Install paths**: run `scripts/setup_paths.py` once per machine — it discovers the CarSim install, verifies the CLI + 64-bit DLL, and caches everything (incl. the newest base Run_all.par and MATLAB) to `~/.carsim_guide_paths.json`. Every function and CLI flag below then resolves paths automatically: explicit argument > env var (`CARSIM_PROG` / `CARSIM_DATADIR` / `CARSIM_BASE`) > that cache.
+**Install paths**: run `scripts/setup_paths.py` once per machine — it discovers the CarSim install, verifies the CLI + 64-bit DLL, and caches everything (MATLAB and an explicitly selected base with SHA256) to `~/.carsim_guide_paths.json`. Every function and CLI flag below then resolves paths automatically: explicit argument > env var (`CARSIM_PROG` / `CARSIM_DATADIR` / `CARSIM_BASE`) > that cache.
 
 ## 0. Workflow overview
 
@@ -39,7 +39,7 @@ CarSim parses parsfiles **last-write-wins**: a keyword written later replaces an
 | `MU_ROAD_CARPET 2D_STEP` | friction override (3-column table: s, mu_left, mu_right). If the base is a low-mu scenario, ordinary scenarios **must** override it or the tires saturate early |
 | `OPT_DM 0` + `STEER_SW_TABLE` | **open-loop steering is the only reliable steering override**. A closed-loop LTARG_TABLE is row-appended, not replaced (observed "tracking" a phantom target 14.6 m away) — never use it to override |
 | `LOG_ENTRY` + `END` | log marker + parsfile terminator (every par needs END) |
-| `extra_lines=` (API) | free keyword lines injected after the tables, before the WRT block — the standard slot for parameter overrides such as static payloads: `["M_SU 1254.0", "Y_CG_SU 150.0"]` (mass verified exact; see SKILL.md §5.3 for the Y_CG_SU quirk) |
+| `unsafe_extra_lines=` (advanced API) | free keyword lines injected after the tables, before the WRT block — the standard slot for parameter overrides such as static payloads: `["M_SU 1254.0", "Y_CG_SU 150.0"]` (mass verified exact; see SKILL.md §5.3 for the Y_CG_SU quirk) |
 
 The `_table()` helper emits `NAME <interp> … ENDTABLE` blocks; `_dedupe()` drops repeated abcissa values — CarSim rejects duplicate x values inside a table.
 
@@ -49,6 +49,7 @@ The `_table()` helper emits `NAME <interp> … ENDTABLE` blocks; `_dedupe()` dro
 |---|---|
 | `FILEBASE/INPUT/INPUTARCHIVE/ECHO/FINAL/LOGFILE/ERDFILE` | all absolute paths into the scenario directory → per-scenario isolated output; batch runs never collide. `ECHO` (parse echo) and `LOGFILE` (lists every dataset actually used) are debugging evidence |
 | `ERDFILE <dir>/run.csv` | combined with `OPT_VS_FILETYPE 4`, yields a CSV directly |
+| `PROGDIR/DATADIR` | keep trailing directory separators; native terrain paths may be constructed by concatenation |
 | `VEHICLE_CODE i_i` | vehicle code (i_i = car-to-car; copy the value matching the base) |
 | `EXT_MODEL_STEP` | keep equal to TSTEP |
 | `DLLFILE` | **pin 64-bit** carsim_64.dll; GUI-generated simfiles may write 32-bit |
@@ -66,18 +67,20 @@ subprocess.run(cmd, capture_output=True, text=True, timeout=...)
   - `Unable to load library` / license error → GUI not open and cslm.exe not running, or a wrong DLLFILE path;
   - "succeeded" but results unchanged → simfile/override path escaping issue; check the simfile path on the first line of run_log.txt.
 
-## 4. read_run_csv(): unit conversion contract (verified)
+## 4. Native CSV unit conversion
+
+The reader now defaults to observable-only; `allow_truth=True` is an explicit evaluator opt-in. Unknown channels and missing requested columns raise. The authoritative registry is in result_contract.py; see channel-registry.md. Do not use this reader on already-SI observable.csv or truth.csv.
 
 | CSV column | Native unit | → SI factor |
 |---|---|---|
 | Time | s | 1 |
-| Vx, Vy | km/h | ×0.2777778 |
-| Ax, Ay | **g** | ×9.81 |
-| AVz | deg/s | ×0.0174533 |
-| Roll, Pitch, Yaw, Steer_*, Alpha_* | deg | ×0.0174533 |
-| AVy_L1/R1/L2/R2 (wheel speeds) | **rpm** | ×0.1047198 |
+| Vx, Vy | km/h | ×(1/3.6) |
+| Ax, Ay | **g** | ×9.80665 |
+| AVz | deg/s | ×(π/180) |
+| Roll, Pitch, Yaw, Steer_*, Alpha_* | deg | ×(π/180) |
+| AVy_L1/R1/L2/R2 (wheel speeds) | **rpm** | ×(2π/60) |
 | Fx_/Fy_/Fz_ (N), My_Dr_/My_Bk_ (N·m), Kappa_ | SI / dimensionless | 1 |
-| AV_Mt_* (motor speeds) | rpm | kept at 1 (multiply by 2π/60 yourself if needed) |
+| AV_Mt_* (motor speeds) | rpm | ×(2π/60), SI rad/s |
 
 Sign conventions (verified): left turn → AVz > 0; My_Dr positive = drive, negative = regen; My_Bk non-positive while moving forward. Wheel corners `L1=FL, R1=FR, L2=RL, R2=RR`.
 
@@ -106,23 +109,24 @@ As a library (custom lane-change scenario) — path arguments are optional once 
 
 ```python
 from carsim_batch import make_scenario, run_solver, read_run_csv
+from scenario_schema import VehicleOverrides
 
 sim = make_scenario(
     out_dir="C:/work/lane_change",
-    base_run_all="C:/work/base/Run_all.par",     # optional: newest cached base
+    base_run_all="C:/work/base/Run_all.par",     # optional: explicitly bound cached base
     prog="C:/CarSim/CarSim2024.0_Prog",          # optional: cached
     datadir="C:/CarSim/CarSim2024.0_Data",       # optional: cached
     tstop=300.0,
     speed_rows=[(0, 43), (30, 65), (60, 72), (90, 40), (300, 50)],   # s, km/h
     steer_rows=[(0, 0), (95, 14), (105, 14), (110, -14), (120, -14), (300, 0)],  # s, deg
     mu=0.9,
-    extra_lines=["M_SU 1254.0"],  # static payload override (verified exact)
+    vehicle_overrides=VehicleOverrides(sprung_mass_kg=1254.0),
 )
 run_solver(sim, timeout=600)  # prog defaults to the cached install
 df = read_run_csv("C:/work/lane_change/run.csv", columns=["Time", "Vx", "Ay", "AVz"])
 ```
 
-Memory note: long scenarios at 1 kHz × 100+ columns can reach hundreds of MB of CSV; `read_run_csv(columns=...)` loads only the needed columns.
+The strict reader validates all loaded native CSV units. For long runs, request only necessary WRT channels during generation to control file size. See research-experiments.md for the preferred load_run() API and explicit estimator whitelist.
 
 ## 6. Companion utility
 

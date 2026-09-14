@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "scripts"))
 import carsim_batch as cb  # noqa: E402
+from scenario_schema import VehicleOverrides  # noqa: E402
 
 logger = logging.getLogger("param_sweep")
 
@@ -39,6 +40,8 @@ def main():
                     help="comma-separated friction values (default 0.4,0.6,0.9)")
     ap.add_argument("--payload-kg", type=float, default=0.0,
                     help="optional central sprung-mass addition (default 0)")
+    ap.add_argument("--base-sprung-mass-kg", type=float,
+                    help="verified base sprung mass, required when adding payload")
     ap.add_argument("--tstop", type=float, default=30.0)
     ap.add_argument("--timeout", type=int, default=300)
     ap.add_argument("--verbose", action="store_true")
@@ -52,9 +55,11 @@ def main():
     speed_rows = [(0, 43), (args.tstop / 2, 65), (args.tstop, 50)]  # s, km/h
     steer_rows = [(0, 0), (args.tstop / 3, 9),                      # s, deg
                   (2 * args.tstop / 3, -9), (args.tstop, 0)]
-    extra = []
+    vehicle_overrides = None
     if args.payload_kg:
-        extra.append("M_SU %.1f" % (1134.0 + args.payload_kg))  # base sprung 1134 kg — adjust to your base!
+        if args.base_sprung_mass_kg is None:
+            ap.error("--payload-kg requires verified --base-sprung-mass-kg")
+        vehicle_overrides = VehicleOverrides(sprung_mass_kg=args.base_sprung_mass_kg + args.payload_kg)
 
     rows = []
     for mu in [float(m) for m in args.mus.split(",")]:
@@ -62,10 +67,11 @@ def main():
         d = os.path.join(args.out, tag)
         sim = cb.make_scenario(d, args.base, args.prog, args.datadir,
                                args.tstop, speed_rows, steer_rows,
-                               mu=mu, extra_lines=extra)
+                               mu=mu, vehicle_overrides=vehicle_overrides,
+                               outputs=cb.OUTPUTS_CORE + cb.OUTPUTS_EXTRA)
         logger.info("running %s ...", tag)
         cb.run_solver(sim, args.prog, timeout=args.timeout)
-        df = cb.read_run_csv(os.path.join(d, "run.csv"),
+        df = cb.read_run_csv(os.path.join(d, "run.csv"), allow_truth=True,
                              columns=["Time", "Vx", "Ax", "Ay", "AVz",
                                       "Kappa_L1", "Kappa_R1",
                                       "Kappa_L2", "Kappa_R2"])

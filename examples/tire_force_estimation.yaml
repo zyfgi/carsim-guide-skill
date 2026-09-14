@@ -1,0 +1,34 @@
+schema_version: 1
+experiment: {id: tire_force_data, seed: 101}
+vehicle: {base: distributed_ev}
+simulation: {duration: 30.0, dt: 0.001}
+road: {mu: 0.8}
+maneuver:
+  speed_kmh: [[0, 40], [15, 60], [30, 40]]
+  steering_deg: [[0, 0], [10, 5], [20, -5], [30, 0]]
+outputs:
+  estimator: [Ax, Ay, AVz, AVy_L1, AVy_R1, AVy_L2, AVy_R2, My_Dr_L1, My_Dr_R1, My_Dr_L2, My_Dr_R2]
+  evaluator: [Vx, Vy, Fx_L1, Fx_R1, Fx_L2, Fx_R2, Fy_L1, Fy_R1, Fy_L2, Fy_R2, Fz_L1, Fz_R1, Fz_L2, Fz_R2]
+# Illustrative settings in SI units, not calibrated sensor specifications.
+sensors:
+  accelerometer:
+    channels: [Ax, Ay]
+    sample_hz: 100
+    noise_std: 0.03
+    latency_s: 0.01
+  gyro:
+    channels: [AVz]
+    sample_hz: 100
+    noise_std: 0.002
+    latency_s: 0.01
+  wheel_speed:
+    channels: [AVy_L1, AVy_R1, AVy_L2, AVy_R2]
+    sample_hz: 100
+    noise_std: 0.05
+    quantization: 0.01
+  drive_torque:
+    channels: [My_Dr_L1, My_Dr_R1, My_Dr_L2, My_Dr_R2]
+    sample_hz: 100
+    noise_std: 1.0
+    jitter_s: 0.002
+    drop_probability: 0.01

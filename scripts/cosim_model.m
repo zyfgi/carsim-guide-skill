@@ -1,4 +1,4 @@
-function cosim_model(workdir, solver_matlab_dir)
+function cosim_model(workdir, solver_matlab_dir, tstop, dt)
 % COsim_MODEL Build + run a CarSim/Simulink co-simulation model headless.
 %
 %   cosim_model('<workdir>', '<PROG>\Programs\solvers\Matlab')
@@ -18,7 +18,8 @@ r_target = 0.15;   % rad/s
 Kp = 600;          % deg per rad/s
 Ki = 1200;         % deg per rad
 sat = 120;         % deg
-tstop = 30;
+if nargin < 3, tstop = 30; end
+if nargin < 4, dt = 0.001; end
 try
     addpath(solver_matlab_dir);
     cd(workdir);
@@ -39,7 +40,7 @@ try
     add_block('simulink/Math Operations/Gain', [mdl '/Kp'], ...
         'Gain', num2str(Kp), 'Position', [215 40 245 70]);
     add_block('simulink/Discrete/Discrete-Time Integrator', [mdl '/intg'], ...
-        'SampleTime', '0.001', 'Position', [215 95 245 125]);
+        'SampleTime', num2str(dt, 17), 'Position', [215 95 245 125]);
     add_block('simulink/Math Operations/Gain', [mdl '/Ki'], ...
         'Gain', num2str(Ki), 'Position', [255 95 285 125]);
     add_block('simulink/Math Operations/Sum', [mdl '/pi_sum'], ...
@@ -78,7 +79,7 @@ try
     add_line(mdl, 'exports/2', 'd2r/1', 'autorouting', 'on');
 
     set_param(mdl, 'StopTime', num2str(tstop), 'SolverType', 'Fixed-step', ...
-        'Solver', 'ode1', 'FixedStep', '0.001');
+        'Solver', 'ode1', 'FixedStep', num2str(dt, 17));
     save_system(mdl);
     fprintf('model built, running...\n');
     out = sim(mdl);

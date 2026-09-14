@@ -1,4 +1,4 @@
-function tv_cosim(workdir, solver_matlab_dir)
+function tv_cosim(workdir, solver_matlab_dir, tstop, dt)
 % TV_COSIM Torque-vectoring co-simulation demo (4-motor EV, zero steering).
 %
 %   tv_cosim('<workdir>', '<PROG>\Programs\solvers\Matlab')
@@ -19,7 +19,8 @@ Kp_r = 3000; Ki_r = 5000; % N.m (differential) per rad/s
 T_tot_max = 2400;         % N.m total
 dT_max = 900;             % N.m left-right differential
 Tw_max = 580;             % N.m per wheel
-tstop = 30;
+if nargin < 3, tstop = 30; end
+if nargin < 4, dt = 0.001; end
 try
     addpath(solver_matlab_dir);
     cd(workdir);
@@ -42,7 +43,7 @@ try
     add_block('simulink/Math Operations/Gain', [mdl '/Kp_v'], ...
         'Gain', num2str(Kp_v), 'Position', [280 40 310 70]);
     add_block('simulink/Discrete/Discrete-Time Integrator', [mdl '/iv'], ...
-        'SampleTime', '0.001', 'Position', [280 95 310 125]);
+        'SampleTime', num2str(dt, 17), 'Position', [280 95 310 125]);
     add_block('simulink/Math Operations/Gain', [mdl '/Ki_v'], ...
         'Gain', num2str(Ki_v), 'Position', [320 95 350 125]);
     add_block('simulink/Math Operations/Sum', [mdl '/vpi'], ...
@@ -61,7 +62,7 @@ try
     add_block('simulink/Math Operations/Gain', [mdl '/Kp_r'], ...
         'Gain', num2str(Kp_r), 'Position', [280 230 310 260]);
     add_block('simulink/Discrete/Discrete-Time Integrator', [mdl '/ir'], ...
-        'SampleTime', '0.001', 'Position', [280 285 310 315]);
+        'SampleTime', num2str(dt, 17), 'Position', [280 285 310 315]);
     add_block('simulink/Math Operations/Gain', [mdl '/Ki_r'], ...
         'Gain', num2str(Ki_r), 'Position', [320 285 350 315]);
     add_block('simulink/Math Operations/Sum', [mdl '/rpi'], ...
@@ -144,7 +145,7 @@ try
     add_line(mdl, 'TRsat/1', 'ts_TR/1', 'autorouting', 'on');
 
     set_param(mdl, 'StopTime', num2str(tstop), 'SolverType', 'Fixed-step', ...
-        'Solver', 'ode1', 'FixedStep', '0.001');
+        'Solver', 'ode1', 'FixedStep', num2str(dt, 17));
     save_system(mdl);
     fprintf('model built, running...\n');
     out = sim(mdl);
