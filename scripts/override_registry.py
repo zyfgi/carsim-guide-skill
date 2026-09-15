@@ -11,8 +11,7 @@ from enum import Enum
 class VerificationLevel(str, Enum):
     """Strongest evidence currently available for an override path."""
 
-    UNIT_TESTED = "unit_tested"
-    CARSIM_TESTED = "carsim_tested"
+    VERIFIED = "verified"
     CONTEXT_REQUIRED = "context_required"
 
 
@@ -31,7 +30,7 @@ OVERRIDE_CAPABILITIES = (
             "scalar",
             keyword,
             "Sprung_Mass",
-            VerificationLevel.CARSIM_TESTED,
+            VerificationLevel.VERIFIED,
             "Licensed CarSim 2024.0 run with run_echo.par value confirmation",
         )
         for keyword in ("M_SU", "LX_CG_SU", "Y_CG_SU", "H_CG_SU", "IZZ_SU")
@@ -40,7 +39,7 @@ OVERRIDE_CAPABILITIES = (
         "table",
         "SPEED_TARGET_TABLE",
         None,
-        VerificationLevel.CARSIM_TESTED,
+        VerificationLevel.VERIFIED,
         "Licensed CarSim 2024.0 structured table run, echo, and result confirmation",
     ),
     OverrideCapability(
@@ -77,7 +76,7 @@ OVERRIDE_CAPABILITIES = (
 def override_capability(
     kind: str, keyword: str | None = None, dataset_family: str | None = None
 ) -> OverrideCapability:
-    """Return the most specific checked-in capability, falling back by kind."""
+    """Return the most specific recorded capability, falling back by kind."""
     normalized_kind = str(kind).casefold()
     normalized_keyword = keyword.upper() if keyword else None
     for capability in OVERRIDE_CAPABILITIES:

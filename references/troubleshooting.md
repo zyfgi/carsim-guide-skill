@@ -19,3 +19,13 @@ The first diagnostic pass recognizes only evidence-backed signatures:
 
 Do not classify unfamiliar solver prose speculatively. Preserve the original
 exception/stdout and ask for the relevant artifact when evidence is missing.
+
+Retry at most once, and only for a temporary file-access failure or a known
+short-lived process/file race. Do not retry license failures, base hash
+mismatches, unknown parameters or output units, echo mismatches, scenario
+validation errors, version warnings that require user judgment, or repeated
+abnormal solver termination. Stop, diagnose, and report the evidence instead.
+
+Do not alter speed, road friction, vehicle mass, or control inputs merely to
+make a failed run pass unless the user explicitly asks to debug the physical
+configuration.

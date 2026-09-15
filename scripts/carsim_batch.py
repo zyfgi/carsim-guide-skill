@@ -404,11 +404,12 @@ def read_run_csv(path, columns=None, units="SI", *, allow_truth=None):
     frame = frame.drop(columns=[c for c in UNRELIABLE_COLS if c in frame])
     if "Time" not in frame:
         raise OutputMissingError("Missing Time channel")
-    if requested:
+    if requested is not None:
         missing = [c for c in requested if c not in frame]
         if missing:
             raise OutputMissingError("Missing requested channels: %s" % missing)
-    selected = list(frame.columns) if requested is None else requested
+        frame = frame.loc[:, requested]
+    selected = list(frame.columns)
     scales = {name: channel(name).scale for name in selected}
     if units == "SI":
         for name, scale in scales.items():
@@ -416,7 +417,7 @@ def read_run_csv(path, columns=None, units="SI", *, allow_truth=None):
                 frame[name] = pd.to_numeric(frame[name], errors="raise") * scale
             except (TypeError, ValueError) as exc:
                 raise OutputParseError("Non-numeric channel %s: %s" % (name, exc)) from exc
-    return frame if requested is None else frame.loc[:, requested]
+    return frame
 
 
 def summarize(df):

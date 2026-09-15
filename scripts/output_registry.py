@@ -98,7 +98,7 @@ for _corner in ("L1", "R1", "L2", "R2"):
 _register("AV_Mt_D1_L AV_Mt_D1_R AV_Mt_D2_L AV_Mt_D2_R",
           "rpm", "rad/s", 2 * pi / 60, "powertrain", "motor speed")
 
-# Only aliases backed by existing field-verified registry entries belong here.
+# Only aliases backed by verified registry entries belong here.
 OUTPUT_ALIASES: dict[str, Sequence[str]] = {
     "yaw rate": ("AVz",),
     "vehicle speed": ("Vx",),

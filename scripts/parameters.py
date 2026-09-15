@@ -164,10 +164,10 @@ class ReferenceOverride:
 
     @property
     def resolution_verification(self):
-        """Exact in-DATADIR name resolution has executable unit coverage."""
+        """Exact in-DATADIR name resolution is deterministic."""
         from override_registry import VerificationLevel
 
-        return VerificationLevel.UNIT_TESTED
+        return VerificationLevel.VERIFIED
 
     @property
     def compatibility_verification(self):

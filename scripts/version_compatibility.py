@@ -29,8 +29,8 @@ class CompatibilityStatus:
     warning: str | None = None
 
 
-# Only real solver evidence may be added here. 2024.0 is documented by the
-# checked-in field verification records; parsing another version is not proof.
+# Only real solver evidence may be added here. CarSim 2024.0 is the verified
+# environment; parsing another version is not compatibility proof.
 COMPATIBILITY: dict[str, frozenset[str]] = {
     "2024.0": frozenset({"cli_solver", "dll_64", "simfile_v1"}),
 }

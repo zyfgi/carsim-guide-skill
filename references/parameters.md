@@ -5,7 +5,7 @@ override files only — the database stays read-only.
 
 ## 1. Typed convenience API (verified)
 
-`VehicleOverrides` covers the five field-verified sprung-mass parameters; SI
+`VehicleOverrides` covers the five verified sprung-mass parameters; SI
 in, CarSim mm out:
 
 ```python
@@ -57,7 +57,7 @@ small structures, not a complete `.par` parser.
 
 Each override exposes an `OverrideCapability` from `override_registry.py`.
 `SPEED_TARGET_TABLE` is the only table keyword currently marked
-`CARSIM_TESTED`. A generic table is `CONTEXT_REQUIRED`. Reference resolution
+`VERIFIED`. A generic table is `CONTEXT_REQUIRED`. Reference resolution
 proves that a named dataset exists; it does **not** prove the reference keyword
 accepts that dataset family, so generic references remain `CONTEXT_REQUIRED`.
 The scenario manifest records these verification states.

@@ -6,7 +6,8 @@ inspecting CarSim through deterministic Python, CLI, and Simulink workflows.
 ## What this skill does
 
 - Discovers CarSim installation paths and validates the 64-bit solver.
-- Runs headless scenarios from Python or validated YAML.
+- Runs scenarios headlessly from Python or validated YAML after one-time base
+  expansion and binding.
 - Binds GUI-expanded Run Control bases by name and SHA256.
 - Applies typed vehicle, scalar, table, and dataset-reference overrides.
 - Discovers unknown outputs and parameters without guessing identifiers.
@@ -14,6 +15,16 @@ inspecting CarSim through deterministic Python, CLI, and Simulink workflows.
 - Reads native result CSV files with verified SI conversions.
 - Routes real-time feedback tasks to Simulink or the VS API.
 - Diagnoses environment, license, compilation, solver, output, and echo errors.
+
+## Why this skill?
+
+CarSim already provides its GUI, solver, database, command-line interface,
+MATLAB/Simulink integration, and VehicleSim interfaces. This skill adds an
+agent-safe orchestration layer for evidence-based discovery, validated
+scenarios and deterministic overrides, repeatable execution, effective-result
+validation, control-mode routing, and run provenance through manifests. It is
+self-contained around deterministic scripts and does not require an MCP
+server.
 
 ## Requirements
 
@@ -41,41 +52,47 @@ For Claude Code, use `~/.claude/skills/carsim-guide`. On Windows, cloning to a
 normal folder and creating a directory link into the agent's skill directory
 also works.
 
-Run path discovery once after installation:
+## Quick start
 
-```text
-python scripts/setup_paths.py
-```
+1. Install the requirements:
 
-This validates the CarSim program directory, DATADIR, CLI solver, and 64-bit
-DLL, then caches the selected paths for later sessions.
+   ```text
+   python -m pip install -r requirements.txt
+   ```
 
-## Basic usage
+2. Discover and cache the local CarSim paths:
 
-A base is a GUI-expanded CarSim Run Control / execution context. Different
-vehicles, procedures, drivers, controls, or other incompatible run
-configurations may require separate bases.
+   ```text
+   python scripts/setup_paths.py
+   ```
 
-Bind a base explicitly:
+3. In CarSim, generate a GUI-expanded `Run_all.par` from the intended Run
+   Control once. The skill intentionally uses this trusted base instead of
+   reimplementing CarSim's complete Run Control expansion and internal dataset
+   resolution.
 
-```text
-python scripts/base_registry.py --registry bases.local.json \
-  --name distributed_ev --base C:/work/Run_all.par \
-  --version 2024.0 --run-control <id> --vehicle <name>
-```
+4. Bind the base by name and SHA256:
 
-Compile or run a YAML scenario:
+   ```text
+   python scripts/base_registry.py --registry bases.local.json \
+     --name distributed_ev --base C:/work/Run_all.par \
+     --version 2024.0 --run-control <id> --vehicle <name>
+   ```
 
-```text
-python scripts/scenario_runner.py examples/scenarios/basic_cruise.yaml \
-  --registry bases.local.json --out runs
+5. Run the basic scenario:
 
-python scripts/scenario_runner.py examples/scenarios/basic_cruise.yaml \
-  --registry bases.local.json --out runs --run
-```
+   ```text
+   python scripts/scenario_runner.py examples/scenarios/basic_cruise.yaml \
+     --registry bases.local.json --out runs --run
+   ```
 
-Each run gets an immutable directory containing the scenario snapshot,
-`override.par`, `simfile.sim`, result files, and `run_manifest.json`.
+6. Inspect `runs/basic_cruise/run.csv`, `run_echo.par`, and
+   `run_manifest.json`. For failures, use `scripts/diagnose_run.py` and
+   `references/troubleshooting.md`.
+
+Here, headless means solver execution after the one-time GUI expansion and
+base binding. Different vehicles, procedures, drivers, controls, or other
+incompatible execution contexts may require separate bound bases.
 
 ## Core capabilities
 
@@ -127,6 +144,15 @@ control. Prerecorded tables and batch replay are not closed-loop control.
 
 The scripts under `examples/discovery/` demonstrate evidence-based output,
 parameter, and dataset dependency discovery.
+
+## Reproducing a run on another machine
+
+Absolute installation paths in a manifest are machine provenance, not
+portable identity. To reproduce a run, use the same compatible CarSim version,
+bind an equivalent GUI-expanded base and verify its SHA256, reuse the saved
+scenario, then compare the new manifest and `run_echo.par`. The version, base
+hash, exact scenario, `scenario_sha256`, and critical input hashes provide the
+portable identity; bit-for-bit equality across machines is not assumed.
 
 ## Safety and database policy
 

@@ -9,7 +9,7 @@ from parameters import KEYWORD_RE, PARAMETER_REGISTRY
 
 CONFIDENCE_LEVELS = frozenset({"verified", "strong", "weak"})
 
-# Every alias maps only to a registry entry with checked-in verification notes.
+# Every alias maps only to a registry entry with recorded verification evidence.
 PARAMETER_ALIASES = {
     "sprung mass": ("M_SU", "CarSim 2024.0 run-echo verification"),
     "sprung-body yaw inertia": ("IZZ_SU", "CarSim 2024.0 run-echo verification"),

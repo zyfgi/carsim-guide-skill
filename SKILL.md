@@ -96,6 +96,14 @@ Classify failure at the layer where evidence places it: environment, base,
 scenario, compile, solver, license, output, echo, database, cosim, or version.
 Do not hide solver exceptions or over-parse unfamiliar solver text.
 
+- Retry at most once, and only for a temporary file-access failure or a known
+  short-lived process/file race.
+- Stop, diagnose, and report evidence for license failures, base hash mismatch,
+  unknown parameters or units, echo mismatch, scenario errors, version warnings
+  requiring judgment, or repeated abnormal solver termination.
+- Never change speed, friction, mass, or control inputs merely to make a failed
+  run pass unless the user asks to debug the physical configuration.
+
 ## Fixed conventions
 
 - Vehicle frame: x forward, y left, z up; positive yaw rate is a left turn.
