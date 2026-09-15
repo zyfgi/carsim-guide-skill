@@ -74,6 +74,19 @@ be published; `run_checks.py` applies this redaction automatically.
 The executable records are complements to, not substitutes for, fresh-agent
 behavioral evaluations.
 
+## P2.1 stabilization round — 2026-09-15
+
+Eight independent fresh sessions used `gpt-5.6-luna`, one scenario per
+session. A–C and E–H passed on the first run. D initially selected the correct
+batch runner but incorrectly routed typed `road.friction` through generic
+parameter discovery; `references/batch-workflows.md` was clarified and a new
+fresh D session passed. Final result: **8 PASS, 0 PARTIAL, 0 FAIL**.
+
+The machine-readable audit is
+`results/2026-09-15-p2-1-luna-behavior.json`. The combined executable record is
+`results/2026-09-15-p2-1-final.json` (**158 passed, 0 failed, 0 skipped**),
+including licensed CarSim and MATLAB/Simulink co-simulation.
+
 ## Behavior eval round — 2026-09-14/15 (first recorded fresh-session run)
 
 Method: six fresh GLM-5.3-Flash agent sessions (one per case), no shared
