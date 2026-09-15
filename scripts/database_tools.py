@@ -136,21 +136,37 @@ def get_parsfile_links(path, datadir=None):
     return links
 
 
-def resolve_dataset_tree(root, datadir=None, max_depth=3):
+def resolve_dataset_tree(root, datadir=None, max_depth=3, allow_external=False):
     """Recursive PARSFILE expansion with cycle detection and a depth limit.
     Nodes: {"path", "identity", "links": [child nodes], "cycle": bool}."""
-    def walk(path, depth, stack):
+    data_root = Path(datadir).resolve() if datadir else None
+
+    def walk(path, depth, stack, external=False):
         resolved = Path(path).resolve()
         node = {"path": str(resolved),
                 "identity": get_dataset_identity(resolved),
-                "links": [], "cycle": resolved in stack}
+                "links": [], "cycle": resolved in stack,
+                "external": external}
         if node["cycle"] or depth >= max_depth:
             return node
         stack = stack | {resolved}
         for link in get_parsfile_links(resolved, datadir):
-            child = Path(link["path"])
+            child = Path(link["path"]).resolve()
             if child.is_file():
-                node["links"].append(walk(child, depth + 1, stack))
+                child_external = bool(data_root and not _inside(child, data_root))
+                if child_external and not allow_external:
+                    identity = get_dataset_identity(child)
+                    node["links"].append({
+                        "path": str(child),
+                        "identity": identity,
+                        "links": [],
+                        "cycle": child in stack,
+                        "external": True,
+                    })
+                else:
+                    node["links"].append(
+                        walk(child, depth + 1, stack, child_external or external)
+                    )
         return node
 
     if not Path(root).is_file():
@@ -166,6 +182,7 @@ class DatasetNode:
     full_data_name: Optional[str]
     category: Optional[str]
     exists: bool = True
+    external: bool = False
 
 
 @dataclass(frozen=True)
@@ -209,6 +226,7 @@ def _inside(path: Path, root: Path) -> bool:
 
 
 def build_dependency_graph(root: str | Path, datadir: str | Path | None = None,
+                           allow_external: bool = False,
                            max_depth: int = 10) -> DatasetGraph:
     """Build a PARSFILE dependency graph without modifying any dataset.
 
@@ -224,17 +242,23 @@ def build_dependency_graph(root: str | Path, datadir: str | Path | None = None,
     graph = DatasetGraph(str(root_path))
     seen = set()
 
-    def add_node(path: Path, exists: bool = True) -> None:
+    def add_node(path: Path, exists: bool = True, external: bool = False) -> None:
         key = str(path.resolve())
         if key in graph.nodes:
             return
         identity = get_dataset_identity(path) if exists else {}
         graph.nodes[key] = DatasetNode(
-            key, identity.get("FullDataName"), identity.get("Category"), exists)
+            key,
+            identity.get("FullDataName"),
+            identity.get("Category"),
+            exists,
+            external,
+        )
 
     def walk(path: Path, depth: int, stack: tuple[Path, ...]) -> None:
         resolved = path.resolve()
-        add_node(resolved)
+        node_external = bool(data_root and not _inside(resolved, data_root))
+        add_node(resolved, external=node_external)
         seen.add(resolved)
         links = get_parsfile_links(resolved, data_root)
         if links and depth >= max_depth:
@@ -245,18 +269,22 @@ def build_dependency_graph(root: str | Path, datadir: str | Path | None = None,
         for link in links:
             target = Path(link["path"]).resolve()
             graph.edges.append(DatasetEdge(str(resolved), str(target), "PARSFILE"))
-            if data_root and not _inside(target, data_root):
+            external = bool(data_root and not _inside(target, data_root))
+            if external:
                 graph.issues.append(GraphIssue(
                     "external_reference", str(target),
                     "Reference resolves outside DATADIR"))
             if not target.is_file():
-                add_node(target, False)
+                add_node(target, False, external)
                 graph.issues.append(GraphIssue(
                     "missing_reference", str(target),
                     "Referenced dataset does not exist"))
                 continue
+            if external and not allow_external:
+                add_node(target, True, True)
+                continue
             if target in stack or target == resolved:
-                add_node(target)
+                add_node(target, external=external)
                 graph.issues.append(GraphIssue(
                     "cycle", str(target), "Dependency cycle detected"))
                 continue

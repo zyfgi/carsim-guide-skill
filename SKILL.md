@@ -13,6 +13,10 @@ parsing or unit tests as solver compatibility proof.
 
 Read only the references needed for the current task.
 
+When this skill provides a verified script path, prefer it over ad-hoc direct
+manipulation. This is a routing preference, not a ban on evidence-gathering
+tools or on a documented escape hatch.
+
 | Request | Read / run |
 |---|---|
 | First use or paths moved | `scripts/setup_paths.py`; then `references/python-interface.md` |
@@ -27,6 +31,7 @@ Read only the references needed for the current task.
 | Throttle, brake, per-wheel torque syntax | `references/advanced-controls.md` |
 | Unexpected run failure | `references/troubleshooting.md`; `scripts/diagnose_run.py` |
 | CarSim version status | `references/version-compatibility.md` |
+| What is implemented vs actually tested | `references/capability-status.md` |
 | Simulink closed loop | `references/simulink-cosim.md` |
 | Low-level VS API stepping | `references/vs-c-api.md` |
 | Read `.par` syntax | `references/dataset-syntax.md` |
@@ -55,7 +60,9 @@ actually use.” Never merge those states.
 
 1. Classify output, parameter, dataset, execution mode, and validation need.
 2. Resolve an exact verified registry entry or alias when one exists.
-3. Otherwise search supplied run/echo/database artifacts deterministically.
+3. Otherwise normalize the physical query into explicit search terms and
+   search supplied run/echo/database artifacts deterministically. Empty search
+   terms mean unresolved; they must never match every artifact line.
 4. Preserve all credible candidates and report ambiguity; never choose the
    first weak match or invent a keyword/channel.
 5. Verify units and context in the actual dataset/echo before compiling.

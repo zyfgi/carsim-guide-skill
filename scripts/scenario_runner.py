@@ -77,9 +77,19 @@ def compile_scenario(config, base_entry, prog, datadir, directory):
         expected[override.keyword] = {"value": override.value,
                                       "echo_validation": override.echo_validation}
     expected.update({"TSTEP": simulation.dt, "TSTOP": simulation.duration, "IPRINT": 1})
+    capabilities = []
+    for override in overrides:
+        capability = override.capability
+        capabilities.append({
+            "kind": capability.kind,
+            "keyword": capability.keyword or getattr(override, "keyword", None),
+            "dataset_family": capability.dataset_family,
+            "verification": capability.verification.value,
+            "evidence": capability.evidence,
+        })
     return {"directory": directory, "simfile": simfile, "simulation": simulation,
             "outputs": outputs, "expected_parameters": expected,
-            "base_copy": base_copy}
+            "base_copy": base_copy, "override_capabilities": capabilities}
 
 
 def verify_compiled(directory, info, base_entry):
@@ -168,6 +178,7 @@ def run_scenario(scenario, registry, output_root, prog=None, datadir=None,
     try:
         save()
         info = compile_scenario(config, base_entry, prog, datadir, directory)
+        manifest["override_capabilities"] = info["override_capabilities"]
         issues = verify_compiled(directory, info, base_entry)
         if issues:
             raise ValueError("Compile check failed: %s" % "; ".join(

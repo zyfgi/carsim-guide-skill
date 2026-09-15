@@ -14,15 +14,15 @@ import database_tools as db
 db.find_datasets(datadir, "spring")            # #FullDataName search -> [{path, full_data_name, library}]
 db.get_dataset_identity(path)                  # header identity dict (no UUID needed)
 db.get_parsfile_links(path, datadir)           # PARSFILE refs -> [{raw, path, exists}]
-db.resolve_dataset_tree(path, datadir, 3)      # cycle-safe recursive expansion
-graph = db.build_dependency_graph(path, datadir, 10)
+db.resolve_dataset_tree(path, datadir, 3)      # external refs recorded, not followed
+graph = db.build_dependency_graph(path, datadir, allow_external=False, max_depth=10)
 db.format_dependency_tree(graph)               # nodes/edges + readable report
 db.find_keyword(datadir, "FS_COMP_COEFFICIENT")  # which datasets define a keyword
 db.search_database_text(datadir, "27 N/mm")    # case-insensitive free-text grep
 db.inspect_echo_keyword("run_echo.par", "M_SU")  # actual echoed value + comment
 ```
 
-CLI equivalents: `python scripts/database_tools.py find-dataset|find-keyword|search|tree|identity|echo <query> --datadir <DATADIR>`. Pass `roots=["Suspensions", ...]` to keep scans inside chosen libraries; absolute or `..` roots outside DATADIR are rejected. The graph records cycles, missing/duplicate datasets, depth limits, and external references instead of hiding them. Workflow for unknown parameters: search → confirm keyword/unit in the dataset file → override (parameters.md) → verify with `inspect_echo_keyword`.
+CLI equivalents: `python scripts/database_tools.py find-dataset|find-keyword|search|tree|identity|echo <query> --datadir <DATADIR>`. Pass `roots=["Suspensions", ...]` to keep scans inside chosen libraries; absolute or `..` roots outside DATADIR are rejected. The graph records cycles, missing/duplicate datasets, depth limits, and external references instead of hiding them. By default an outside-DATADIR reference becomes an `external=True` node plus an `external_reference` issue but is not recursively followed. Set `allow_external=True` only after explicitly accepting that wider read scope; descendant nodes remain marked external. The legacy tree API follows the same boundary. Workflow for unknown parameters: search → confirm keyword/unit in the dataset file → override (parameters.md) → verify with `inspect_echo_keyword`.
 
 Commands below use Git Bash syntax (in PowerShell, use `Select-String -Pattern … -Recurse` equivalents).
 

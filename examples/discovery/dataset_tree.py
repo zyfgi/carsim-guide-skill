@@ -13,7 +13,9 @@ def main() -> None:
     parser.add_argument("--datadir")
     parser.add_argument("--max-depth", type=int, default=10)
     args = parser.parse_args()
-    graph = build_dependency_graph(args.dataset, args.datadir, args.max_depth)
+    graph = build_dependency_graph(
+        args.dataset, args.datadir, max_depth=args.max_depth
+    )
     print(format_dependency_tree(graph))
 
 

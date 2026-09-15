@@ -7,7 +7,8 @@ native units, SI conversions, categories, descriptions, and aliases.
 
 1. Call `resolve_output_alias(text)`. It performs exact verified alias lookup;
    an empty result means “unknown,” not permission to infer a channel.
-2. Call `find_output_candidates(text, sources=[...])` over relevant prior
+2. Call `find_output_candidates(text, search_terms=[...], artifacts=[...])`
+   over relevant prior
    `run.csv`, `run_echo.par`, or CarSim output-definition files.
 3. Show each candidate with its source line. A candidate without an
    `OutputSpec` is weak and must not be requested yet.
@@ -15,8 +16,17 @@ native units, SI conversions, categories, descriptions, and aliases.
    definition or successful run, then add a reviewed registry entry and test.
 5. Request the verified channel and confirm it is present in the fresh CSV.
 
-`find_output_candidates` never fabricates a name. Do not bulk-add plausible
-CarSim names for coverage.
+`normalize_output_query` returns a `DiscoveryQuery(original, search_terms,
+aliases)`. The built-in Chinese mappings translate physical descriptions such
+as “前悬架垂向行程” into English *physical search phrases*, never into a
+CarSim channel. A candidate channel must still occur literally in an artifact.
+Passing `search_terms=[]`, or having no usable terms, returns no candidates.
+
+Candidates expose `channel`, `source`, `matched_text`, `reason`, and
+`verification_state` (`registered` or `artifact_match`). Artifact matches do
+not mutate `OUTPUT_REGISTRY` and remain unverified until channel meaning and
+native unit are confirmed. `find_output_candidates` never fabricates a name.
+Do not bulk-add plausible CarSim names for coverage.
 
 ## CSV reading contract
 

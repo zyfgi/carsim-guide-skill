@@ -11,6 +11,7 @@ from math import pi
 from pathlib import Path
 
 from carsim_errors import OutputChannelError
+from discovery_query import DiscoveryQuery, ascii_query_terms, normalized_terms
 
 VALID_OUTPUT_CATEGORIES = frozenset({
     "time", "vehicle_state", "wheel", "tire", "suspension", "steering",
@@ -42,11 +43,27 @@ class OutputSpec:
 class OutputCandidate:
     """One channel candidate with the evidence that produced it."""
 
-    name: str
+    channel: str
     source: str
-    evidence: str
-    confidence: str
+    matched_text: str
+    reason: str
+    verification_state: str
     spec: OutputSpec | None = None
+
+    @property
+    def name(self) -> str:
+        """P2 compatibility alias."""
+        return self.channel
+
+    @property
+    def evidence(self) -> str:
+        """P2 compatibility alias."""
+        return self.matched_text
+
+    @property
+    def confidence(self) -> str:
+        """P2 compatibility alias."""
+        return "verified" if self.verification_state == "registered" else "weak"
 
 
 OUTPUT_REGISTRY: dict[str, OutputSpec] = {}
@@ -88,6 +105,14 @@ OUTPUT_ALIASES: dict[str, Sequence[str]] = {
     "longitudinal vehicle speed": ("Vx",),
 }
 
+# These map physical descriptions to English physical search phrases, never to
+# a CarSim channel. A literal channel still has to be found in an artifact.
+OUTPUT_PHYSICAL_TERMS: dict[str, Sequence[str]] = {
+    "前悬架垂向行程": ("front suspension travel", "front suspension vertical travel"),
+    "方向盘转角": ("steering wheel angle",),
+    "发动机转速": ("engine speed", "engine rpm"),
+}
+
 # WRT spellings differ from CSV spellings for these two known channels.
 WRT_ALIASES = {"ROLL": "Roll", "PITCH": "Pitch"}
 UNRELIABLE_COLS = ("Lat_Veh", "Lat_Targ")
@@ -113,6 +138,21 @@ def resolve_output_alias(query: str) -> list[OutputSpec]:
     return [output_spec(name) for name in names]
 
 
+def normalize_output_query(
+    query: str, search_terms: Iterable[str] | None = None
+) -> DiscoveryQuery:
+    """Normalize a multilingual query without mapping it to an invented channel."""
+    original = " ".join(str(query).strip().split())
+    aliases = tuple(spec.name for spec in resolve_output_alias(original))
+    if search_terms is not None:
+        terms = normalized_terms(search_terms)
+    else:
+        terms = normalized_terms(OUTPUT_PHYSICAL_TERMS.get(original, ()))
+        if not terms:
+            terms = ascii_query_terms(original)
+    return DiscoveryQuery(original, terms, aliases)
+
+
 def _source_files(sources: Iterable[str | Path]) -> Iterable[Path]:
     for source in sources:
         path = Path(source)
@@ -123,20 +163,37 @@ def _source_files(sources: Iterable[str | Path]) -> Iterable[Path]:
                         p.suffix.lower() in {".csv", ".par", ".txt", ".sim"})
 
 
-def find_output_candidates(query: str, sources: Iterable[str | Path] = (),
-                           limit: int = 50) -> list[OutputCandidate]:
+def find_output_candidates(
+    query: str,
+    sources: Iterable[str | Path] = (),
+    limit: int = 50,
+    *,
+    search_terms: Iterable[str] | None = None,
+    artifacts: Iterable[str | Path] | None = None,
+) -> list[OutputCandidate]:
     """Find output candidates from verified aliases and supplied artifacts.
 
     Artifact discoveries are candidates, not verified facts. Callers must
     confirm native units in an echo/data definition before registration/use.
     """
-    exact = resolve_output_alias(query)
-    if exact:
-        return [OutputCandidate(s.name, "verified registry", query, "verified", s)
-                for s in exact]
-    words = [w for w in re.findall(r"[A-Za-z0-9_]+", query.casefold()) if len(w) > 1]
+    normalized = normalize_output_query(query, search_terms)
+    if normalized.aliases:
+        return [
+            OutputCandidate(
+                name,
+                "verified registry",
+                normalized.original,
+                "exact verified alias or registered channel",
+                "registered",
+                output_spec(name),
+            )
+            for name in normalized.aliases
+        ]
+    if not normalized.search_terms:
+        return []
+    artifact_sources = tuple(sources) + tuple(artifacts or ())
     found: dict[str, OutputCandidate] = {}
-    for path in _source_files(Path(p) for p in sources):
+    for path in _source_files(Path(p) for p in artifact_sources):
         try:
             if path.suffix.lower() == ".csv":
                 with path.open("r", encoding="utf-8-sig", errors="ignore", newline="") as handle:
@@ -147,7 +204,8 @@ def find_output_candidates(query: str, sources: Iterable[str | Path] = (),
             continue
         for line in evidence_lines:
             folded = line.casefold()
-            if words and not all(word in folded for word in words):
+            matched = next((term for term in normalized.search_terms if term in folded), None)
+            if matched is None:
                 continue
             tokens = re.findall(r"\b(?:WRT_)?[A-Za-z][A-Za-z0-9_]*\b", line)
             for token in tokens:
@@ -156,9 +214,17 @@ def find_output_candidates(query: str, sources: Iterable[str | Path] = (),
                 spec = OUTPUT_REGISTRY.get(canonical)
                 if spec is None and "_" not in name:
                     continue
-                found.setdefault(canonical, OutputCandidate(
-                    canonical, str(path), line.strip(),
-                    "verified" if spec else "weak", spec))
+                found.setdefault(
+                    canonical,
+                    OutputCandidate(
+                        canonical,
+                        str(path),
+                        line.strip(),
+                        f"literal artifact match for physical search term {matched!r}",
+                        "registered" if spec else "artifact_match",
+                        spec,
+                    ),
+                )
                 if len(found) >= limit:
                     return list(found.values())
     return list(found.values())

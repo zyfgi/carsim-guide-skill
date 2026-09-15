@@ -18,7 +18,9 @@ total-vehicle CG; the Y_CG_SU static-split quirk is documented in SKILL.md §5.
 ## 2. Generic scalar overrides (keyword confirmed, value native)
 
 `ScalarOverride` carries one keyword, its value **in the CarSim native
-unit**, and an echo policy (`required`, `best_effort`, or `none`). Only keywords verified on a real base belong in
+unit**, and an echo policy (`required`, `best_effort`, or `none`). Registered
+field-tested scalars default to `required`; unknown generic scalars default to
+`best_effort`. Only keywords verified on a real base belong in
 `parameters.PARAMETER_REGISTRY` (currently the same five above); anything else
 must be confirmed first:
 
@@ -50,6 +52,13 @@ keywords (timing, paths, DLL, product version, and ports) — conflicts raise at
 `ReferenceOverride` accepts an exact `#FullDataName`, resolves it uniquely
 inside DATADIR, and rejects arbitrary file paths. These are deliberately
 small structures, not a complete `.par` parser.
+
+Each override exposes an `OverrideCapability` from `override_registry.py`.
+`SPEED_TARGET_TABLE` is the only table keyword currently marked
+`CARSIM_TESTED`. A generic table is `CONTEXT_REQUIRED`. Reference resolution
+proves that a named dataset exists; it does **not** prove the reference keyword
+accepts that dataset family, so generic references remain `CONTEXT_REQUIRED`.
+The scenario manifest records these verification states.
 
 YAML uses `type: table` or `type: reference`; see the scenario schema.
 

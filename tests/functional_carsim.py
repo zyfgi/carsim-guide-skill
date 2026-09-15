@@ -25,6 +25,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "scripts"))
 import carsim_batch as cb  # noqa: E402
+from parameters import TableOverride  # noqa: E402
 
 
 def _available_paths():
@@ -41,10 +42,11 @@ pytestmark = pytest.mark.skipif(
 
 
 def _run_scenario(tmp_path, name, tstop, speed_rows, steer_rows, extra_lines,
-                  timeout=600):
+                  timeout=600, structured_overrides=None):
     sim = cb.make_scenario(str(tmp_path / name), PATHS[2], PATHS[0], PATHS[1],
                            tstop, speed_rows, steer_rows,
-                           unsafe_extra_lines=extra_lines)
+                           unsafe_extra_lines=extra_lines,
+                           structured_overrides=structured_overrides)
     cb.run_solver(sim, timeout=timeout)
     return Path(tmp_path / name)
 
@@ -117,6 +119,34 @@ def test_speed_table_override_replaces_base(tmp_path):
     assert len(rows) == 2, "expected exactly 2 rows (REPLACE), got %d" % len(rows)
     assert rows[0][1] == pytest.approx(23.4, rel=1e-3)
     assert rows[1][1] == pytest.approx(46.8, rel=1e-3)
+
+
+def test_structured_speed_table_override_carsim(tmp_path):
+    """The typed TableOverride path is licensed-tested, echoed, and produces data."""
+    directory = _run_scenario(
+        tmp_path,
+        "structured_table",
+        10.0,
+        [(0, 0), (10, 0)],
+        [(0, 0), (10, 0)],
+        [],
+        structured_overrides=[
+            TableOverride(
+                "SPEED_TARGET_TABLE",
+                [(0, 23.4), (10, 46.8)],
+                independent_variable="time",
+            )
+        ],
+    )
+    rows = _echo_table_rows(directory / "run_echo.par", "SPEED_TARGET_TABLE")
+    assert rows is not None and len(rows) == 2
+    assert rows[0] == pytest.approx([0.0, 23.4], rel=1e-3)
+    assert rows[1] == pytest.approx([10.0, 46.8], rel=1e-3)
+    assert (directory / "run.csv").stat().st_size > 0
+    assert (directory / "run_log.txt").stat().st_size > 0
+    frame = cb.read_run_csv(directory / "run.csv", columns=["Time", "Vx"])
+    assert len(frame) > 2 and frame.Time.iloc[-1] == pytest.approx(10.0, abs=0.1)
+    assert frame.Vx.iloc[-1] > frame.Vx.iloc[0] + 2.0
 
 
 @pytest.mark.skipif(not os.environ.get("CARSIM_MATLAB"),

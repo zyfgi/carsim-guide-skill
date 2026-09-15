@@ -16,6 +16,13 @@ sweep:
 Only existing nested scenario fields and `parameters.<KEYWORD>` are valid
 targets. Complex DOE/optimization is intentionally outside this layer.
 
+For a uniform road-friction sweep, use the already verified scenario field
+`road.friction` exactly as shown above. Core compiles that field to its owned
+`MU_ROAD_CARPET` table. Do **not** reroute this ordinary field through parameter
+discovery, invent `parameters.<friction_keyword>`, or treat it as a generic
+scalar. Parameter discovery is only for physical quantities that do not
+already have a typed scenario field.
+
 Run with:
 
 ```text

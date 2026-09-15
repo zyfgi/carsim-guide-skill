@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 
 from carsim_errors import DatasetResolutionError
+from override_registry import OverrideCapability, override_capability
 
 KEYWORD_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 ECHO_POLICIES = frozenset({"required", "best_effort", "none"})
@@ -64,15 +65,22 @@ class ScalarOverride:
 
     keyword: str
     value: float
-    echo_validation: str = "required"
+    echo_validation: str | None = None
 
     def __post_init__(self) -> None:
         _validate_keyword(self.keyword)
+        if self.echo_validation is None:
+            policy = "required" if self.keyword.upper() in PARAMETER_REGISTRY else "best_effort"
+            object.__setattr__(self, "echo_validation", policy)
         if not math.isfinite(self.value):
             raise ValueError(f"Override value must be finite: {self.keyword}")
         if self.echo_validation not in ECHO_POLICIES:
             raise ValueError(
                 "echo_validation must be required, best_effort, or none")
+
+    @property
+    def capability(self) -> OverrideCapability:
+        return override_capability("scalar", self.keyword)
 
     def lines(self) -> list[str]:
         """Serialize one plain CarSim keyword line."""
@@ -114,6 +122,10 @@ class TableOverride:
                 for row in self.rows]
         return [f"{self.keyword} {self.interpolation}", *body, "ENDTABLE"]
 
+    @property
+    def capability(self) -> OverrideCapability:
+        return override_capability("table", self.keyword)
+
 
 @dataclass(frozen=True)
 class ReferenceOverride:
@@ -146,6 +158,24 @@ class ReferenceOverride:
         """Serialize the reference after exact resolution."""
         return [f"{self.keyword} {self.resolve(datadir)}"]
 
+    @property
+    def capability(self) -> OverrideCapability:
+        return override_capability("reference", self.keyword)
+
+    @property
+    def resolution_verification(self):
+        """Exact in-DATADIR name resolution has executable unit coverage."""
+        from override_registry import VerificationLevel
+
+        return VerificationLevel.UNIT_TESTED
+
+    @property
+    def compatibility_verification(self):
+        """Keyword-to-dataset-family compatibility still needs local proof."""
+        from override_registry import VerificationLevel
+
+        return VerificationLevel.CONTEXT_REQUIRED
+
 
 @dataclass(frozen=True)
 class RawOverride:
@@ -167,6 +197,10 @@ class RawOverride:
         """Return raw lines unchanged; no echo contract is implied."""
         return list(self.raw_lines)
 
+    @property
+    def capability(self) -> OverrideCapability:
+        return override_capability("raw")
+
 
 StructuredOverride = ScalarOverride | TableOverride | ReferenceOverride | RawOverride
 
@@ -184,7 +218,7 @@ def coerce_scalar_overrides(items: Iterable[object] | None) -> list[ScalarOverri
             if not {"keyword", "value"}.issubset(item) or not set(item).issubset(allowed):
                 raise ValueError("Parameter mapping must contain keyword/value and optional echo_validation")
             out.append(ScalarOverride(item["keyword"], item["value"],
-                                      item.get("echo_validation", "required")))
+                                      item.get("echo_validation")))
         elif isinstance(item, (tuple, list)) and len(item) in (2, 3):
             out.append(ScalarOverride(*item))
         else:
