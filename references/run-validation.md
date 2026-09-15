@@ -33,8 +33,9 @@ raises `ValueError` on the first error and returns the legacy metrics dict.
 Echo validation uses exact `KEYWORD value` matches in `run_echo.par`
 (rel 1e-6). It covers scalar keywords that echo line-by-line; keywords that
 cannot be reliably extracted are reported as absent rather than assumed OK.
-Table-level echo validation (speed/steer/MU tables) is a P2 item — until then
-check tables via `database_tools.inspect_echo_keyword` or grep.
+For table overrides, inspect the complete echoed table block and confirm the
+result behavior. `SPEED_TARGET_TABLE` is a verified structured path; other
+table families require confirmation in the target Run Control.
 
 ```python
 from validate_run import check_run

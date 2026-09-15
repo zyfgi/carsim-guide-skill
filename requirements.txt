@@ -3,6 +3,3 @@ pandas>=1.5
 numpy>=1.23
 PyYAML>=6.0
 jsonschema>=4.18
-
-# Development / CI (not needed to just run the skill)
-#   pip install pytest ruff

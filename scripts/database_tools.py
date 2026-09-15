@@ -155,10 +155,9 @@ def resolve_dataset_tree(root, datadir=None, max_depth=3, allow_external=False):
             if child.is_file():
                 child_external = bool(data_root and not _inside(child, data_root))
                 if child_external and not allow_external:
-                    identity = get_dataset_identity(child)
                     node["links"].append({
                         "path": str(child),
-                        "identity": identity,
+                        "identity": {},
                         "links": [],
                         "cycle": child in stack,
                         "external": True,
@@ -231,7 +230,8 @@ def build_dependency_graph(root: str | Path, datadir: str | Path | None = None,
     """Build a PARSFILE dependency graph without modifying any dataset.
 
     Cycles, repeated references, missing targets, traversal depth limits and
-    references outside DATADIR are retained as explicit issues.
+    references outside DATADIR are retained as explicit issues. External files
+    are not opened unless ``allow_external=True``.
     """
     root_path = Path(root).resolve()
     if not root_path.is_file():
@@ -242,11 +242,12 @@ def build_dependency_graph(root: str | Path, datadir: str | Path | None = None,
     graph = DatasetGraph(str(root_path))
     seen = set()
 
-    def add_node(path: Path, exists: bool = True, external: bool = False) -> None:
+    def add_node(path: Path, exists: bool = True, external: bool = False,
+                 inspect: bool = True) -> None:
         key = str(path.resolve())
         if key in graph.nodes:
             return
-        identity = get_dataset_identity(path) if exists else {}
+        identity = get_dataset_identity(path) if exists and inspect else {}
         graph.nodes[key] = DatasetNode(
             key,
             identity.get("FullDataName"),
@@ -281,7 +282,7 @@ def build_dependency_graph(root: str | Path, datadir: str | Path | None = None,
                     "Referenced dataset does not exist"))
                 continue
             if external and not allow_external:
-                add_node(target, True, True)
+                add_node(target, True, True, inspect=False)
                 continue
             if target in stack or target == resolved:
                 add_node(target, external=external)

@@ -2,8 +2,9 @@ __pycache__/
 *.pyc
 *.vsb
 run.csv
-.pytest_cache/
-.pytest-tmp*/
-.test-tmp*/
-.validation/
-.tools/
+run_echo.par
+run_log.txt
+solver_stdout.txt
+run_manifest.json
+runs/
+artifacts/

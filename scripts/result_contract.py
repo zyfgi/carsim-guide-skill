@@ -1,4 +1,4 @@
-"""Backward-compatible facade for the P2 output registry."""
+"""Stable facade for verified output metadata and SI conversions."""
 from output_registry import (
     OUTPUT_REGISTRY as CHANNEL_REGISTRY,
     OutputSpec as Channel,
@@ -7,7 +7,9 @@ from output_registry import (
     output_spec,
 )
 
-# P1 public name retained. Natural-language aliases live in output_registry.
+__all__ = ["CHANNEL_REGISTRY", "Channel", "OUTPUT_ALIASES", "UNRELIABLE_COLS", "channel"]
+
+# Public constants remain stable; natural-language aliases live in output_registry.
 OUTPUT_ALIASES = WRT_ALIASES
 
 

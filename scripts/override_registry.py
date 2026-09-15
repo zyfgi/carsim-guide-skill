@@ -32,7 +32,7 @@ OVERRIDE_CAPABILITIES = (
             keyword,
             "Sprung_Mass",
             VerificationLevel.CARSIM_TESTED,
-            "P1 licensed CarSim run plus run_echo.par value verification",
+            "Licensed CarSim 2024.0 run with run_echo.par value confirmation",
         )
         for keyword in ("M_SU", "LX_CG_SU", "Y_CG_SU", "H_CG_SU", "IZZ_SU")
     ),
@@ -41,7 +41,7 @@ OVERRIDE_CAPABILITIES = (
         "SPEED_TARGET_TABLE",
         None,
         VerificationLevel.CARSIM_TESTED,
-        "tests/functional_carsim.py structured table licensed regression",
+        "Licensed CarSim 2024.0 structured table run, echo, and result confirmation",
     ),
     OverrideCapability(
         "scalar",
@@ -55,14 +55,14 @@ OVERRIDE_CAPABILITIES = (
         None,
         None,
         VerificationLevel.CONTEXT_REQUIRED,
-        "Generic table serialization is unit-tested; keyword/table schema requires context",
+        "Generic table serialization is available; keyword/table schema requires context",
     ),
     OverrideCapability(
         "reference",
         None,
         None,
         VerificationLevel.CONTEXT_REQUIRED,
-        "Dataset resolution is unit-tested; keyword-to-dataset compatibility is not licensed-tested",
+        "Exact dataset resolution is checked separately; keyword-to-dataset compatibility requires context",
     ),
     OverrideCapability(
         "raw",

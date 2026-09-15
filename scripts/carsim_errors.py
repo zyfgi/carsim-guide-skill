@@ -1,7 +1,7 @@
 """Stable exception taxonomy for the CarSim core and discovery layers.
 
 The compatibility base classes intentionally retain ``ValueError`` or
-``RuntimeError`` semantics where the P1 public API already exposed them.
+``RuntimeError`` semantics where existing callers already rely on them.
 """
 
 

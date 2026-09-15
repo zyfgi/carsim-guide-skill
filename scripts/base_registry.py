@@ -7,7 +7,7 @@ SHA256 and the CarSim version on every use; a changed base fails loudly
 instead of silently switching vehicles.
 
 Registry files may still contain a legacy top-level "vehicles" section (see
-vehicle_registry.py); both shapes resolve.
+older registry formats); both shapes resolve.
 """
 import argparse
 import hashlib

@@ -11,10 +11,10 @@ CONFIDENCE_LEVELS = frozenset({"verified", "strong", "weak"})
 
 # Every alias maps only to a registry entry with checked-in verification notes.
 PARAMETER_ALIASES = {
-    "sprung mass": ("M_SU", "P1 field verification / run echo"),
-    "sprung-body yaw inertia": ("IZZ_SU", "P1 field verification / run echo"),
-    "yaw inertia": ("IZZ_SU", "P1 field verification / run echo"),
-    "sprung-body cg height": ("H_CG_SU", "P1 field verification / run echo"),
+    "sprung mass": ("M_SU", "CarSim 2024.0 run-echo verification"),
+    "sprung-body yaw inertia": ("IZZ_SU", "CarSim 2024.0 run-echo verification"),
+    "yaw inertia": ("IZZ_SU", "CarSim 2024.0 run-echo verification"),
+    "sprung-body cg height": ("H_CG_SU", "CarSim 2024.0 run-echo verification"),
 }
 
 PARAMETER_PHYSICAL_TERMS = {
@@ -95,7 +95,7 @@ def discover_parameter(query: str, datadir: str | Path | None = None,
                        limit: int = 50, *,
                        search_terms: list[str] | tuple[str, ...] | None = None
                        ) -> ParameterDiscoveryReport:
-    """Apply the P2 discovery order and return candidates without guessing.
+    """Apply the deterministic discovery order without guessing.
 
     A unique database hit remains ``strong`` until its unit/meaning is checked
     against the actual dataset and run echo; it is not silently promoted.

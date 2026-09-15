@@ -35,7 +35,7 @@ class OutputSpec:
 
     @property
     def native_unit(self) -> str | None:
-        """P1 compatibility alias for ``source_unit``."""
+        """Compatibility alias for ``source_unit``."""
         return self.source_unit
 
 
@@ -52,17 +52,17 @@ class OutputCandidate:
 
     @property
     def name(self) -> str:
-        """P2 compatibility alias."""
+        """Compatibility alias for ``channel``."""
         return self.channel
 
     @property
     def evidence(self) -> str:
-        """P2 compatibility alias."""
+        """Compatibility alias for ``matched_text``."""
         return self.matched_text
 
     @property
     def confidence(self) -> str:
-        """P2 compatibility alias."""
+        """Compatibility confidence derived from verification state."""
         return "verified" if self.verification_state == "registered" else "weak"
 
 

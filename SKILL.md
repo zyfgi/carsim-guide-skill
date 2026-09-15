@@ -6,8 +6,8 @@ description: Operate and automate CarSim simulations from an agent, including sa
 # CarSim agent router
 
 CarSim 2024.0 is field-tested in this skill. Other explicitly detected
-versions follow the generic path with an **unverified** warning; never describe
-parsing or unit tests as solver compatibility proof.
+versions follow the generic path with an **unverified** warning; version
+detection alone is not solver compatibility proof.
 
 ## Route the request
 
@@ -30,12 +30,10 @@ tools or on a documented escape hatch.
 | Choose batch, Simulink, or VS API control | `references/control-modes.md` |
 | Throttle, brake, per-wheel torque syntax | `references/advanced-controls.md` |
 | Unexpected run failure | `references/troubleshooting.md`; `scripts/diagnose_run.py` |
-| CarSim version status | `references/version-compatibility.md` |
-| What is implemented vs actually tested | `references/capability-status.md` |
+| CarSim compatibility / version status | `references/compatibility.md`, then `references/version-compatibility.md` when diagnosing version handling |
 | Simulink closed loop | `references/simulink-cosim.md` |
 | Low-level VS API stepping | `references/vs-c-api.md` |
 | Read `.par` syntax | `references/dataset-syntax.md` |
-| Optional research/estimator workflow | `references/workflows/research-experiments.md`, `references/workflows/estimator-validation.md` |
 
 ## Non-negotiable execution model
 
@@ -103,7 +101,6 @@ Do not hide solver exceptions or over-parse unfamiliar solver text.
 - Vehicle frame: x forward, y left, z up; positive yaw rate is a left turn.
 - Corners: L1=FL, R1=FR, L2=RL, R2=RR.
 - One immutable directory per run; never overwrite prior batch members.
-- Tire Fx/Fy/Fz/Kappa/Alpha are ordinary outputs. Estimator restrictions live
-  only in the optional research workflow.
+- Tire Fx/Fy/Fz/Kappa/Alpha are ordinary outputs.
 - `Lat_Veh` and `Lat_Targ` remain excluded as verified drift artifacts; use
   Yo/Yaw for lateral position.

@@ -2,9 +2,8 @@
 
 A generic scenario describes one ordinary CarSim run: base, timing, road
 friction, maneuver profiles, vehicle parameters, extra scalar overrides and
-requested output channels. No research concepts exist at this layer — every
-registered channel (tire forces included) is a legal output; estimator
-isolation lives in the optional workflow layer only.
+requested output channels. Every registered channel, including tire forces,
+is a legal output.
 
 ## Define
 
@@ -49,8 +48,7 @@ python scripts/base_registry.py --registry bases.local.json --name distributed_e
 ```
 
 Resolving re-verifies the SHA256 on every run; a changed base fails instead of
-silently switching vehicles. Legacy `vehicle_registry.py` registries keep
-resolving (compat wrapper).
+silently switching vehicles.
 
 ## Compile and run
 
@@ -74,5 +72,4 @@ One directory per scenario: `run_manifest.json`, `base_Run_all.par`,
 units, 1 kHz), `run_echo.par`, `run_log.txt`, `solver_stdout.txt`. The
 manifest records run status/timestamps, CarSim version + solver/DLL hashes,
 base name + SHA256, the exact scenario config, artifact paths and input/output
-hashes. It contains no research fields; `experiment_runner`'s manifest.json is
-a research extension of the same compile path.
+hashes.

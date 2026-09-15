@@ -382,8 +382,7 @@ def read_run_csv(path, columns=None, units="SI", *, allow_truth=None):
     artifacts) are dropped unless explicitly requested, in which case an
     explanatory error is raised.
 
-    Estimator isolation is an optional research-workflow concern, not a core
-    behavior: see scripts/workflows/estimator_validation.py (load_run).
+    Requested registered tire-force channels are handled like other outputs.
     """
     if allow_truth is not None:
         warnings.warn(
