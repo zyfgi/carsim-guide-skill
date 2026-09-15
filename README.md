@@ -2,7 +2,7 @@
 
 # CarSim Guide
 
-A skill for operating CarSim from an AI agent: environment discovery, headless simulation, vehicle/run configuration, parameter overrides, scenario generation, batch runs, output parsing with SI conversion, control inputs (including per-wheel torque), database exploration, Simulink co-simulation and solver diagnostics. CarSim 2024.0 is the tested solver. After one GUI base expansion per vehicle, the batch workflow uses the CLI and writes scenario artifacts outside the database. Optional research workflows (manifest-tracked data generation, estimator validation, sensor replay) layer on top and are never required for ordinary operation. Verification results distinguish Python tests, licensed solver runs and manual agent-behavior evals.
+A skill for operating CarSim from an AI agent: environment discovery, headless simulation, safe output/parameter discovery, structured overrides, isolated batch runs, dependency graphs, control-mode selection, SI output parsing, diagnostics, and version-aware execution. CarSim 2024.0 is the field-tested solver. A named GUI-expanded Run Control provides the execution context; the CLI writes scenario artifacts outside the read-only database. Verification results distinguish implementation, unit tests, licensed solver runs, and agent-behavior evals.
 
 ## What it does
 
@@ -13,14 +13,14 @@ A skill for operating CarSim from an AI agent: environment discovery, headless s
 | Run a scenario from YAML (manifest + validation) | `scripts/scenario_runner.py` — typed scenario YAML, base resolved by name + SHA256, compile-time checks, `run_manifest.json` |
 | Change speed / steering / friction / duration | keyword overrides appended after a GUI-expanded base (CarSim parses last-write-wins) |
 | Set sprung mass, CG and yaw inertia | `VehicleOverrides(sprung_mass_kg=..., cg_y_m=..., izz_kgm2=...)`; SI inputs convert internally |
-| Change any other CarSim keyword | confirm it with `scripts/database_tools.py` (read-only search), then `ScalarOverride` / `unsafe_extra_lines` — never guess a keyword |
-| Switch to another vehicle | one-time GUI base expansion, then override everything else |
-| Read results | `read_run_csv()` → SI DataFrame of every registered channel (`units="native"` for raw values; unknown units fail, never guessed) |
+| Discover/change another CarSim keyword | `parameter_discovery.py` + read-only database evidence, then a scalar/table/reference/raw override — never guess |
+| Switch execution context | expand/bind the intended Run Control, then apply compatible overrides |
+| Discover/read results | `output_registry.py`, then `read_run_csv()` → SI DataFrame (`units="native"` for raw values; unknown units fail) |
 | Close the loop in Simulink | co-simulation via the `vs_sf` S-Function — `examples/simulink_cosim.py` + `scripts/cosim_model.m` (PI yaw-tracking demo, verified end to end) |
 | Torque vectoring / TCS / event tests | per-wheel torque imports (`examples/torque_vectoring.py` — zero-steer yaw verified), open-loop throttle/brake tables, FSAE acceleration/braking patterns |
 | Explore the vehicle database | read-only Python API `scripts/database_tools.py` (datasets, keywords, PARSFILE trees, echo) + grep recipes in `references/` |
 | Understand dataset files | `.par` syntax templates in `references/` |
-| Batch runs / sweeps | `examples/param_sweep.py`, experiment YAML templates |
+| Batch runs / sweeps | `scripts/batch_runner.py` + `examples/batches/` (`cartesian` or `zip`, isolated manifests) |
 
 ## Optional research workflows
 
@@ -150,7 +150,12 @@ scripts/parameters.py              # ScalarOverride framework + verified paramet
 scripts/database_tools.py          # read-only database exploration API
 scripts/vehicle_registry.py        # deprecated compat wrapper over base_registry
 scripts/experiment_runner.py       # compile / run / validate / manifest (optional research workflow)
-scripts/result_contract.py         # core channel registry: native units, SI factors, categories
+scripts/output_registry.py         # verified output metadata, aliases and candidate discovery
+scripts/result_contract.py         # backward-compatible output-registry facade
+scripts/parameter_discovery.py      # evidence-bearing parameter candidate search
+scripts/batch_runner.py             # isolated cartesian/zip scenarios via scenario_runner
+scripts/diagnose_run.py             # layered run-diagnostic CLI
+scripts/version_compatibility.py    # verified/unverified version feature registry
 scripts/workflows/                 # optional workflow layer (estimator validation); core never imports it
 scripts/sensor_replay.py           # causal seeded sensor packets (optional research workflow)
 scripts/validate_run.py            # fresh complete results and echoed parameters
@@ -159,6 +164,8 @@ scripts/cosim_model.m              # Simulink co-sim model builder (matlab -batc
 scripts/tv_cosim.m                 # torque-vectoring co-sim model builder
 scripts/dump_dll_exports.py        # zero-dependency DLL export-symbol enumerator
 examples/scenarios/                # generic scenario YAML examples (cruise, friction, steering, tire forces, overrides)
+examples/batches/                  # friction and mass/friction batch YAML examples
+examples/discovery/                # output, parameter and dataset-graph discovery CLIs
 examples/param_sweep.py            # runnable batch parameter-sweep example
 examples/simulink_cosim.py         # runnable Simulink+CarSim closed-loop demo
 examples/torque_vectoring.py       # runnable torque-vectoring demo (zero-steer yaw)
@@ -170,6 +177,12 @@ references/python-interface.md     # script walkthrough + unit conversion contra
 references/database-exploration.md # database exploration: database_tools API + grep recipes
 references/scenarios.md            # generic scenario YAML contract + scenario_runner
 references/parameters.md           # parameter override tiers + unknown-keyword workflow
+references/outputs-and-units.md    # output discovery + subset/full CSV contracts
+references/parameter-discovery.md  # ordered discovery and ambiguity handling
+references/batch-workflows.md      # batch schema, isolation and manifests
+references/control-modes.md        # batch/Simulink/VS API capability matrix
+references/troubleshooting.md      # diagnostic layers and stable signatures
+references/version-compatibility.md # evidence-based version handling
 references/run-validation.md       # compile-time + post-run validation semantics
 references/dataset-syntax.md       # .par dataset syntax templates
 references/advanced-controls.md    # open-loop controls, torque imports, table semantics, FSAE notes

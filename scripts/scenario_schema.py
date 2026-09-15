@@ -8,12 +8,12 @@ sensors, experiments) live in the workflow layer, not here.
 """
 import json
 import math
-import re
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional
 
 from result_contract import channel
+from parameters import coerce_structured_overrides
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class VehicleOverrides:
         for name in ("sprung_mass_kg", "izz_kgm2"):
             value = getattr(self, name)
             if value is not None and value <= 0:
-                raise ValueError("%s must be positive" % f.name)
+                raise ValueError("%s must be positive" % name)
         if self.cg_z_m is not None and self.cg_z_m < 0:
             raise ValueError("cg_z_m must be nonnegative")
 
@@ -79,11 +79,7 @@ def validate_scenario(config):
     jsonschema.Draft202012Validator(json.loads(schema.read_text(encoding="utf-8"))).validate(config)
     sim = SimulationConfig(**config["simulation"])
     VehicleOverrides(**config.get("vehicle", {}))
-    for row in config.get("parameters", []):
-        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", row["keyword"]):
-            raise ValueError("Invalid parameter keyword: %r" % row["keyword"])
-        if not math.isfinite(row["value"]):
-            raise ValueError("Parameter value must be finite: %s" % row["keyword"])
+    coerce_structured_overrides(config.get("parameters", []))
     for name in config["outputs"]["channels"]:
         channel(name)  # unregistered units fail closed
         if name == "Time":

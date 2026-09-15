@@ -49,7 +49,12 @@ from pathlib import Path
 import pandas as pd
 
 from base_registry import product_version as resolve_version, sha256
-from parameters import check_conflicts, coerce_scalar_overrides
+from carsim_errors import (CarSimNotFoundError, LicenseError, OutputMissingError,
+                           OutputParseError, SolverExecutionError,
+                           SolverTerminationError)
+from parameters import (PROTECTED_RUNTIME_KEYWORDS, RawOverride, ReferenceOverride,
+                        check_conflicts, coerce_scalar_overrides,
+                        coerce_structured_overrides)
 from result_contract import CHANNEL_REGISTRY, channel
 from scenario_schema import SimulationConfig
 
@@ -183,7 +188,7 @@ def _dedupe(rows):
 def override_par(base_run_all, tstop, speed_rows, steer_rows,
                  outputs=None, mu=0.9, tstep=TSTEP, extra_lines=(),
                  unsafe_extra_lines=(), vehicle_overrides=None,
-                 scalar_overrides=()):
+                 scalar_overrides=(), structured_overrides=(), datadir=None):
     """Build override.par text: base reference + run switches + control tables.
 
     Key switches (see SKILL.md section 3 for the full rationale):
@@ -211,12 +216,14 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
         raise ValueError("Use only one extra-lines argument")
     raw_lines = list(unsafe_extra_lines or extra_lines)
     scalar_overrides = coerce_scalar_overrides(scalar_overrides)
-    protected = {"TSTART", "TSTOP", "TSTEP", "IPRINT"}
+    structured_overrides = coerce_structured_overrides(structured_overrides)
+    protected = set(PROTECTED_RUNTIME_KEYWORDS)
     if vehicle_overrides:
         protected.update(vehicle_overrides.keywords())
     check_conflicts(scalar_overrides, protected)
+    check_conflicts(structured_overrides, protected)
     for line in raw_lines:
-        if line.strip() and line.split()[0].upper() in protected:
+        if line.strip() and line.split()[0].upper() in {k.upper() for k in protected}:
             raise ValueError("Raw override conflicts with typed configuration: %s" % line)
         if "\n" in line or "\r" in line:
             raise ValueError("Supply one keyword line per list entry")
@@ -246,6 +253,15 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
     lines += vehicle_overrides.lines() if vehicle_overrides else []
     for override in scalar_overrides:
         lines += override.lines()
+    for override in structured_overrides:
+        if isinstance(override, ReferenceOverride):
+            if not datadir:
+                raise ValueError("datadir is required for ReferenceOverride")
+            lines += override.lines(datadir)
+        elif isinstance(override, RawOverride):
+            lines += override.lines()
+        else:
+            lines += override.lines()
     lines += raw_lines
     lines += ["WRT_" + {"Roll": "ROLL", "Pitch": "PITCH"}.get(name, name) for name in outputs]
     lines += ["LOG_ENTRY scenario override", "END", ""]
@@ -297,7 +313,7 @@ def make_scenario(out_dir, base_run_all=None, prog=None, datadir=None,
     steer_rows = steer_rows if steer_rows is not None else [(0.0, 0.0),
                                                             (tstop, 0.0)]
     par_text = override_par(base_run_all, tstop, speed_rows, steer_rows,
-                            tstep=config.dt, **kw)
+                            tstep=config.dt, datadir=datadir, **kw)
     sim_text = simfile(out_dir, prog, datadir, config.dt, product_version)
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "override.par"), "w", newline="\n", encoding="utf-8") as f:
@@ -325,15 +341,30 @@ def run_solver(simfile_path, prog=None, timeout=600):
     """
     prog, _, _ = resolve_paths(prog, require=("prog",))
     exe = os.path.join(prog, "Programs", "VS_SolverWrapper_CLI_64.exe")
+    if not Path(exe).is_file():
+        raise CarSimNotFoundError("CarSim CLI solver not found: %s" % exe)
     cmd = [exe, "-sim", simfile_path.replace("\\", "/")]
-    proc = subprocess.run(cmd, capture_output=True, text=True,
-                          timeout=timeout, encoding="utf-8", errors="replace")
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=timeout, encoding="utf-8", errors="replace")
+    except subprocess.TimeoutExpired as exc:
+        raise SolverExecutionError("CarSim solver timed out after %s s" % timeout) from exc
+    except OSError as exc:
+        raise SolverExecutionError("Could not launch CarSim solver: %s" % exc) from exc
     out = (proc.stdout or "") + (proc.stderr or "")
-    if proc.returncode != 0 or "Termination at simulation time" not in out:
+    license_markers = ("unable to load library", "need a running copy",
+                       "solver license")
+    if any(marker in out.casefold() for marker in license_markers):
+        raise LicenseError("CarSim solver could not acquire/load its license: %s" %
+                           "\n".join(out.splitlines()[-20:]))
+    if proc.returncode != 0:
         tail = "\n".join(out.splitlines()[-40:])
-        raise RuntimeError(
+        raise SolverExecutionError(
             "solver failed (returncode %d).\n--- output tail ---\n%s"
             % (proc.returncode, tail))
+    if "Termination at simulation time" not in out:
+        raise SolverTerminationError(
+            "Solver returned without 'Termination at simulation time'")
     return out  # caller can grep RTIME etc.
 
 
@@ -362,7 +393,10 @@ def read_run_csv(path, columns=None, units="SI", *, allow_truth=None):
             DeprecationWarning, stacklevel=2)
     if units not in ("SI", "native"):
         raise ValueError("units must be 'SI' or 'native', got %r" % (units,))
-    frame = pd.read_csv(path)
+    try:
+        frame = pd.read_csv(path)
+    except (OSError, pd.errors.ParserError, UnicodeError) as exc:
+        raise OutputParseError("Could not parse run CSV: %s" % exc) from exc
     requested = list(columns) if columns is not None else None
     for name in requested or ():
         if name in UNRELIABLE_COLS:
@@ -371,15 +405,19 @@ def read_run_csv(path, columns=None, units="SI", *, allow_truth=None):
                 "for lateral position" % name)
     frame = frame.drop(columns=[c for c in UNRELIABLE_COLS if c in frame])
     if "Time" not in frame:
-        raise ValueError("Missing Time channel")
-    scales = {name: channel(name).scale for name in frame.columns}
+        raise OutputMissingError("Missing Time channel")
     if requested:
         missing = [c for c in requested if c not in frame]
         if missing:
-            raise ValueError("Missing requested channels: %s" % missing)
+            raise OutputMissingError("Missing requested channels: %s" % missing)
+    selected = list(frame.columns) if requested is None else requested
+    scales = {name: channel(name).scale for name in selected}
     if units == "SI":
         for name, scale in scales.items():
-            frame[name] = pd.to_numeric(frame[name], errors="raise") * scale
+            try:
+                frame[name] = pd.to_numeric(frame[name], errors="raise") * scale
+            except (TypeError, ValueError) as exc:
+                raise OutputParseError("Non-numeric channel %s: %s" % (name, exc)) from exc
     return frame if requested is None else frame.loc[:, requested]
 
 

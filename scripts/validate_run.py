@@ -99,11 +99,20 @@ def _check_contents(directory, simulation, required_channels, expected_parameter
     echo = (directory / "run_echo.par").read_text(encoding="utf-8", errors="replace")
     actual = {}
     echo_ok = True
-    for key, requested in (expected_parameters or {}).items():
+    for key, expectation in (expected_parameters or {}).items():
+        if isinstance(expectation, dict):
+            requested = expectation["value"]
+            policy = expectation.get("echo_validation", "required")
+        else:
+            requested = expectation
+            policy = "required"
+        if policy == "none":
+            continue
         matches = re.findall(r"^\s*" + re.escape(key) + r"\s+([-+0-9.eEdD]+)(?=\s|$)", echo, re.M)
         if not matches:
-            add("error", "echo_absent", "Parameter absent from echo: %s" % key)
-            echo_ok = False
+            severity = "error" if policy == "required" else "warning"
+            add(severity, "echo_absent", "Parameter absent from echo: %s" % key)
+            echo_ok = echo_ok and severity != "error"
             continue
         value = float(matches[-1].replace("D", "E").replace("d", "e"))
         if not math.isclose(value, requested, rel_tol=1e-6, abs_tol=1e-8):

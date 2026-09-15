@@ -1,0 +1,9 @@
+batch:
+  id: mass_friction_grid
+base_scenario: ../scenarios/basic_cruise.yaml
+combination: cartesian
+sweep:
+  parameters.M_SU:
+    values: [1100, 1200, 1300]
+  road.friction:
+    values: [0.6, 0.8]

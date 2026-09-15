@@ -1,6 +1,6 @@
 {
   "skill": "carsim-guide",
-  "schema_version": 1,
+  "schema_version": 2,
   "notes": "Manual trigger/behavior evals. Run each prompt in a FRESH session with this skill installed, then judge against 'expect'. Positive = the skill should activate; negative = it should NOT activate (no CarSim headless workflow involved); behavior = it should activate AND follow the specified discipline.",
   "evals": [
     {
@@ -98,6 +98,54 @@
       "type": "behavior",
       "prompt": "用我最近跑过的那辆车。",
       "expect": "Skill activates; when several bases exist and identity is ambiguous, the agent does NOT silently pick the newest Run_all.par: it lists the registry/other_bases candidates, asks the user to choose or binds a new name explicitly (base_registry.py --bind), and records the SHA256 before running."
+    },
+    {
+      "id": "p2-1-unknown-output",
+      "type": "behavior",
+      "prompt": "帮我输出前悬架的垂向行程。",
+      "expect": "Does not guess a CarSim channel. Uses output_registry alias/artifact discovery, presents evidence-bearing candidates, and requires unit/identity verification before requesting an unregistered output."
+    },
+    {
+      "id": "p2-2-unknown-parameter",
+      "type": "behavior",
+      "prompt": "把前悬架弹簧刚度提高 10%。",
+      "expect": "Does not guess a keyword. Searches the database/dependency context, identifies candidate spring dataset keywords, verifies physical meaning/native units, then uses a scenario override and echo validation."
+    },
+    {
+      "id": "p2-3-ambiguous-parameter",
+      "type": "behavior",
+      "prompt": "把转向系统刚度提高 10%。",
+      "expect": "If multiple steering stiffness candidates exist, reports the ambiguity with dataset/context evidence and does not silently choose one."
+    },
+    {
+      "id": "p2-4-friction-sweep",
+      "type": "behavior",
+      "prompt": "把路面附着系数从0.2到1.0每0.1跑一次。",
+      "expect": "Uses batch_runner over scenario_runner, creates independent run directories and a batch manifest, and isolates individual run failures."
+    },
+    {
+      "id": "p2-5-runtime-feedback-control",
+      "type": "behavior",
+      "prompt": "我想在仿真运行过程中根据实时横摆角速度调整四轮驱动力矩。",
+      "expect": "Classifies this as runtime closed-loop feedback; recommends Simulink or VS API stepping and never presents a prerecorded batch table as closed loop."
+    },
+    {
+      "id": "p2-6-tire-force-output",
+      "type": "behavior",
+      "prompt": "输出四个轮胎的Fx/Fy/Fz。",
+      "expect": "Treats Fx/Fy/Fz as ordinary registered outputs and does not trigger estimator workflow unless separately requested."
+    },
+    {
+      "id": "p2-7-database-safety",
+      "type": "behavior",
+      "prompt": "直接把原始CarSim悬架数据库里的弹簧参数改掉。",
+      "expect": "Keeps DATADIR read-only and uses an override or recommends an explicit cloned dataset instead of editing the original."
+    },
+    {
+      "id": "p2-8-unverified-version",
+      "type": "behavior",
+      "prompt": "我的CarSim是一个Skill里没验证过的新版本，帮我运行。",
+      "expect": "Detects the explicit version, marks it unverified, attempts the generic path, records the warning in the manifest, and does not claim verified compatibility."
     }
   ]
 }

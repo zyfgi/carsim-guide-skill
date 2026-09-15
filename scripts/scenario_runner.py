@@ -23,9 +23,10 @@ from pathlib import Path
 
 import carsim_batch as cb
 from base_registry import resolve_base, sha256
-from parameters import coerce_scalar_overrides
+from parameters import ScalarOverride, coerce_structured_overrides
 from scenario_schema import SimulationConfig, VehicleOverrides, load_scenario, validate_scenario
 from validate_run import ValidationIssue, check_run
+from version_compatibility import compatibility_status
 
 MANIFEST_NAME = "run_manifest.json"
 
@@ -58,7 +59,9 @@ def compile_scenario(config, base_entry, prog, datadir, directory):
         raise ValueError("Base changed during snapshot")
     simulation = SimulationConfig(**config["simulation"])
     vehicle = VehicleOverrides(**config.get("vehicle", {}))
-    scalar = coerce_scalar_overrides(config.get("parameters", []))
+    overrides = coerce_structured_overrides(config.get("parameters", []))
+    scalar = [item for item in overrides if isinstance(item, ScalarOverride)]
+    structured = [item for item in overrides if not isinstance(item, ScalarOverride)]
     outputs = [n for n in config["outputs"]["channels"] if n != "Time"]
     if config.get("validation", {}).get("minimum_speed_mps") and "Vx" not in outputs:
         outputs.append("Vx")
@@ -66,11 +69,13 @@ def compile_scenario(config, base_entry, prog, datadir, directory):
         str(directory), str(base_copy), prog, datadir, config=simulation,
         speed_rows=config["maneuver"]["speed_kmh"],
         steer_rows=config["maneuver"]["steering_deg"], mu=config["road"]["friction"],
-        vehicle_overrides=vehicle, scalar_overrides=scalar, outputs=outputs,
+        vehicle_overrides=vehicle, scalar_overrides=scalar,
+        structured_overrides=structured, outputs=outputs,
         product_version=base_entry["carsim_version"])
     expected = dict(vehicle.keywords())
     for override in scalar:
-        expected[override.keyword] = override.value
+        expected[override.keyword] = {"value": override.value,
+                                      "echo_validation": override.echo_validation}
     expected.update({"TSTEP": simulation.dt, "TSTOP": simulation.duration, "IPRINT": 1})
     return {"directory": directory, "simfile": simfile, "simulation": simulation,
             "outputs": outputs, "expected_parameters": expected,
@@ -104,7 +109,7 @@ def _artifacts(directory):
     names = {"override_par": "override.par", "simfile": "simfile.sim",
              "run_csv": "run.csv", "run_echo": "run_echo.par",
              "run_log": "run_log.txt", "solver_stdout": "solver_stdout.txt",
-             "base_run_all": "base_Run_all.par"}
+             "base_run_all": "base_Run_all.par", "scenario": "scenario.yaml"}
     return {key: str(directory / name) for key, name in names.items()
             if (directory / name).is_file()}
 
@@ -127,14 +132,21 @@ def run_scenario(scenario, registry, output_root, prog=None, datadir=None,
     if directory.exists():
         raise FileExistsError("Scenario directory already exists: %s" % directory)
     directory.mkdir(parents=True)
+    import yaml
+    (directory / "scenario.yaml").write_text(
+        yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     cli = Path(prog) / "Programs" / "VS_SolverWrapper_CLI_64.exe"
     dll = Path(prog) / "Programs" / "solvers" / "carsim_64.dll"
+    version_status = compatibility_status(base_entry["carsim_version"])
     manifest = {
         "manifest_version": 1,
         "run": {"id": config["scenario"]["id"], "created_utc": utc_now(),
                 "started_utc": None, "finished_utc": None, "status": "preparing"},
-        "carsim": {"version": base_entry["carsim_version"], "prog": str(prog),
+        "carsim": {"version": base_entry["carsim_version"],
+                   "version_verified": version_status.verified,
+                   "compatibility_warning": version_status.warning,
+                   "verified_features": sorted(version_status.features), "prog": str(prog),
                    "datadir": str(datadir), "solver": str(cli), "dll": str(dll),
                    "solver_sha256": sha256(cli), "dll_sha256": sha256(dll)},
         "base": {"name": base_entry["name"],
@@ -161,7 +173,7 @@ def run_scenario(scenario, registry, output_root, prog=None, datadir=None,
             raise ValueError("Compile check failed: %s" % "; ".join(
                 "%s: %s" % (i.code, i.message) for i in issues))
         manifest["input_sha256"] = {n: sha256(directory / n)
-                                    for n in ("override.par", "simfile.sim",
+                                    for n in ("scenario.yaml", "override.par", "simfile.sim",
                                               "base_Run_all.par")}
         manifest["run"]["status"] = "compiled"
         save()

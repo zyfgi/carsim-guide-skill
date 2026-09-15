@@ -15,6 +15,9 @@ import json
 import re
 from pathlib import Path
 
+from carsim_errors import BaseResolutionError, VersionCompatibilityError
+from version_compatibility import parse_version
+
 _REQUIRED = ("base_run_all", "base_sha256", "carsim_version")
 
 
@@ -30,12 +33,15 @@ def product_version(prog, explicit=None):
     match = re.search(r"CarSim[ _-]?(\d{4}\.\d+)", str(prog), re.I)
     discovered = match.group(1) if match else None
     if explicit is not None and not re.fullmatch(r"\d{4}\.\d+", explicit):
-        raise ValueError("CarSim version must look like 2024.0")
+        raise VersionCompatibilityError("CarSim version must look like 2024.0")
     if explicit and discovered and explicit != discovered:
-        raise ValueError("Pinned CarSim version disagrees with install directory")
+        raise VersionCompatibilityError("Pinned CarSim version disagrees with install directory")
     if not (explicit or discovered):
-        raise ValueError("Cannot infer CarSim version; supply carsim_version explicitly")
-    return explicit or discovered
+        raise VersionCompatibilityError(
+            "Cannot infer CarSim version; supply carsim_version explicitly")
+    value = explicit or discovered
+    parse_version(value)
+    return value
 
 
 def _load(registry_path):
@@ -73,17 +79,17 @@ def resolve_base(registry_path, name, prog=None):
     try:
         entry = dict(bases[name])
     except KeyError:
-        raise ValueError(
+        raise BaseResolutionError(
             "Unknown base name %r; bind it explicitly first "
             "(python scripts/base_registry.py --registry ... --bind)" % name) from None
     missing = [key for key in _REQUIRED if key not in entry]
     if missing:
-        raise ValueError("Base record %s is missing fields: %s" % (name, missing))
+        raise BaseResolutionError("Base record %s is missing fields: %s" % (name, missing))
     base = Path(entry["base_run_all"])
     if not base.is_absolute():
         base = Path(registry_path).resolve().parent / base
     if sha256(base) != entry["base_sha256"]:
-        raise ValueError("Base SHA256 mismatch for %s; bind a new name to "
+        raise BaseResolutionError("Base SHA256 mismatch for %s; bind a new name to "
                          "deliberately adopt the new revision" % name)
     product_version(prog, entry["carsim_version"])
     entry["base_run_all"] = str(base.resolve())

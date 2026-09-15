@@ -15,12 +15,14 @@ db.find_datasets(datadir, "spring")            # #FullDataName search -> [{path,
 db.get_dataset_identity(path)                  # header identity dict (no UUID needed)
 db.get_parsfile_links(path, datadir)           # PARSFILE refs -> [{raw, path, exists}]
 db.resolve_dataset_tree(path, datadir, 3)      # cycle-safe recursive expansion
+graph = db.build_dependency_graph(path, datadir, 10)
+db.format_dependency_tree(graph)               # nodes/edges + readable report
 db.find_keyword(datadir, "FS_COMP_COEFFICIENT")  # which datasets define a keyword
 db.search_database_text(datadir, "27 N/mm")    # case-insensitive free-text grep
 db.inspect_echo_keyword("run_echo.par", "M_SU")  # actual echoed value + comment
 ```
 
-CLI equivalents: `python scripts/database_tools.py find-dataset|find-keyword|search|tree|identity|echo <query> --datadir <DATADIR>`. Pass `roots=["Suspensions", ...]` to keep scans inside chosen libraries. Workflow for unknown parameters: search → confirm keyword/unit in the dataset file → override (parameters.md) → verify with `inspect_echo_keyword`. The grep recipes below remain valid and show what the API wraps.
+CLI equivalents: `python scripts/database_tools.py find-dataset|find-keyword|search|tree|identity|echo <query> --datadir <DATADIR>`. Pass `roots=["Suspensions", ...]` to keep scans inside chosen libraries; absolute or `..` roots outside DATADIR are rejected. The graph records cycles, missing/duplicate datasets, depth limits, and external references instead of hiding them. Workflow for unknown parameters: search → confirm keyword/unit in the dataset file → override (parameters.md) → verify with `inspect_echo_keyword`.
 
 Commands below use Git Bash syntax (in PowerShell, use `Select-String -Pattern … -Recurse` equivalents).
 
@@ -109,12 +111,12 @@ Three sources, fastest first:
 2. **Local manuals**: `<PROG>\Help\Memos\*.pdf` (VS_Commands_API, Procedures_VS_Commands, VS_SolverWrapper, …), `<PROG>\Help\Manuals\VS_SDK.pdf`.
 3. **GUI**: the VS Browser shows each parameter's name/unit/range (most convenient for humans).
 
-## 5. Switching to a new vehicle (the only GUI-dependent flow)
+## 5. Switching to a new Run Control execution context (the GUI-dependent flow)
 
 1. Find the target vehicle assembly by name (§1, confirm via `#FullDataName`).
 2. In the GUI (VS Browser), open a Run Control referencing that vehicle (clone one if needed; edit the three PARSFILE links: vehicle / procedure / camera).
 3. Click **Run Math Model** (or Generate Files) → get `Results\Run_<uuid>\Run_all.par` = the new base.
-4. From then on, every scenario for that vehicle goes through the override pattern (SKILL.md §3 / `scripts/carsim_batch.py`) — the GUI is not needed again.
+4. Bind that expanded Run Control (vehicle + procedure + controls + road context) by name and SHA256. Compatible scenarios can then use the override pattern without another GUI step.
 
 ## 6. MCP acceleration mapping (optional, when available)
 

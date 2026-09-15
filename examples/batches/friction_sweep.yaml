@@ -1,0 +1,7 @@
+batch:
+  id: friction_sweep
+base_scenario: ../scenarios/basic_cruise.yaml
+combination: cartesian
+sweep:
+  road.friction:
+    values: [0.2, 0.4, 0.6, 0.8, 1.0]

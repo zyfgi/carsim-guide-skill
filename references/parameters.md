@@ -1,6 +1,6 @@
 # Parameters: changing vehicle / run values safely
 
-Three tiers, from safest to most powerful. All of them write scenario
+Four tiers, from safest to most powerful. All of them write scenario
 override files only — the database stays read-only.
 
 ## 1. Typed convenience API (verified)
@@ -17,8 +17,8 @@ total-vehicle CG; the Y_CG_SU static-split quirk is documented in SKILL.md §5.
 
 ## 2. Generic scalar overrides (keyword confirmed, value native)
 
-`ScalarOverride` carries one keyword and its value **in the CarSim native
-unit**. Only keywords verified on a real base belong in
+`ScalarOverride` carries one keyword, its value **in the CarSim native
+unit**, and an echo policy (`required`, `best_effort`, or `none`). Only keywords verified on a real base belong in
 `parameters.PARAMETER_REGISTRY` (currently the same five above); anything else
 must be confirmed first:
 
@@ -34,20 +34,30 @@ Never guess a keyword. In YAML:
 
 ```yaml
 parameters:
-  - {keyword: FS_COMP_COEFFICIENT, value: 29.7}
+  - {keyword: FS_COMP_COEFFICIENT, value: 29.7, echo_validation: required}
 ```
 
 Validation: keywords are `[A-Z][A-Z0-9_]*` tokens, values finite; overrides
-may not duplicate a typed `vehicle` field nor touch protected run keywords
-(`TSTART/TSTOP/TSTEP/IPRINT/OPT_STOP/SSTOP/OPT_VS_FILETYPE/OPT_ALL_WRITE/
-OPT_ERROR_DIALOG`) — conflicts raise at compile time. Post-run,
+may not duplicate a typed `vehicle` field nor touch Core-managed run/simfile
+keywords (timing, paths, DLL, product version, and ports) — conflicts raise at compile time. Post-run,
 `check_run` verifies every requested keyword against `run_echo.par`
 (known-echo keywords only; unsupported ones are reported, never faked).
 
-## 3. Escape hatch (advanced CarSim syntax)
+## 3. Structured table and dataset reference overrides
 
-Tables, `PARSFILE`, `IMPORT`/`EXPORT`, `INSTALL_*` blocks and any keyword the
-API does not model yet go through `unsafe_extra_lines=[...]` (see
+`TableOverride` accepts a non-empty, finite rectangular numeric table. Set
+`independent_variable="time"` to require a strictly increasing first column.
+`ReferenceOverride` accepts an exact `#FullDataName`, resolves it uniquely
+inside DATADIR, and rejects arbitrary file paths. These are deliberately
+small structures, not a complete `.par` parser.
+
+YAML uses `type: table` or `type: reference`; see the scenario schema.
+
+## 4. Escape hatch (advanced CarSim syntax)
+
+Complex `IMPORT`/`EXPORT`, `INSTALL_*` blocks and syntax the API does not
+model go through `RawOverride([...])` or legacy `unsafe_extra_lines=[...]` (see
 references/advanced-controls.md for the verified torque/brake/steer syntax).
-One keyword line per list entry; conflicts with typed configuration are
-rejected. `extra_lines` is a deprecated alias.
+One line per entry; conflicts with typed configuration are rejected. Raw
+syntax has no automatic semantic or complex echo guarantee. `extra_lines` is
+a deprecated alias.

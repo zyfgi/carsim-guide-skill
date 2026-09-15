@@ -18,7 +18,11 @@ import argparse
 import json
 import os
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Dict, List, Optional
+
+from carsim_errors import DatasetResolutionError
 
 HEADER_READ_LINES = 60
 _KEYSPLIT = re.compile(r"^#(\w+)\s*(.*)$")
@@ -32,12 +36,17 @@ def _keymatch(line):
 def _par_files(datadir, roots=None):
     """Yield .par file paths under datadir, restricted to roots (subdirectory
     names or paths) when given."""
-    datadir = Path(datadir)
+    datadir = Path(datadir).resolve()
     if roots:
         seen = set()
         for root in roots:
             root = datadir / root if not Path(root).is_absolute() else Path(root)
             root = root.resolve()
+            try:
+                root.relative_to(datadir)
+            except ValueError:
+                raise DatasetResolutionError(
+                    "Database search roots must remain inside DATADIR: %s" % root) from None
             if root in seen or not root.exists():
                 continue
             seen.add(root)
@@ -147,6 +156,149 @@ def resolve_dataset_tree(root, datadir=None, max_depth=3):
     if not Path(root).is_file():
         raise ValueError("Not a dataset file: %s" % root)
     return walk(root, 0, frozenset())
+
+
+@dataclass(frozen=True)
+class DatasetNode:
+    """One dataset identity in a dependency graph."""
+
+    path: str
+    full_data_name: Optional[str]
+    category: Optional[str]
+    exists: bool = True
+
+
+@dataclass(frozen=True)
+class DatasetEdge:
+    """One parsed reference between datasets."""
+
+    source: str
+    target: str
+    keyword: str
+
+
+@dataclass(frozen=True)
+class GraphIssue:
+    """Non-fatal graph condition requiring caller attention."""
+
+    code: str
+    path: str
+    message: str
+
+
+@dataclass
+class DatasetGraph:
+    """Explainable dependency graph and its structural warnings."""
+
+    root: str
+    nodes: Dict[str, DatasetNode] = field(default_factory=dict)
+    edges: List[DatasetEdge] = field(default_factory=list)
+    issues: List[GraphIssue] = field(default_factory=list)
+
+    def issues_by_code(self, code: str) -> List[GraphIssue]:
+        """Return graph issues with one stable code."""
+        return [issue for issue in self.issues if issue.code == code]
+
+
+def _inside(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def build_dependency_graph(root: str | Path, datadir: str | Path | None = None,
+                           max_depth: int = 10) -> DatasetGraph:
+    """Build a PARSFILE dependency graph without modifying any dataset.
+
+    Cycles, repeated references, missing targets, traversal depth limits and
+    references outside DATADIR are retained as explicit issues.
+    """
+    root_path = Path(root).resolve()
+    if not root_path.is_file():
+        raise DatasetResolutionError("Not a dataset file: %s" % root)
+    if max_depth < 0:
+        raise ValueError("max_depth must be nonnegative")
+    data_root = Path(datadir).resolve() if datadir else None
+    graph = DatasetGraph(str(root_path))
+    seen = set()
+
+    def add_node(path: Path, exists: bool = True) -> None:
+        key = str(path.resolve())
+        if key in graph.nodes:
+            return
+        identity = get_dataset_identity(path) if exists else {}
+        graph.nodes[key] = DatasetNode(
+            key, identity.get("FullDataName"), identity.get("Category"), exists)
+
+    def walk(path: Path, depth: int, stack: tuple[Path, ...]) -> None:
+        resolved = path.resolve()
+        add_node(resolved)
+        seen.add(resolved)
+        links = get_parsfile_links(resolved, data_root)
+        if links and depth >= max_depth:
+            graph.issues.append(GraphIssue(
+                "depth_limit", str(resolved),
+                "Dependencies were not traversed beyond max_depth=%s" % max_depth))
+            return
+        for link in links:
+            target = Path(link["path"]).resolve()
+            graph.edges.append(DatasetEdge(str(resolved), str(target), "PARSFILE"))
+            if data_root and not _inside(target, data_root):
+                graph.issues.append(GraphIssue(
+                    "external_reference", str(target),
+                    "Reference resolves outside DATADIR"))
+            if not target.is_file():
+                add_node(target, False)
+                graph.issues.append(GraphIssue(
+                    "missing_reference", str(target),
+                    "Referenced dataset does not exist"))
+                continue
+            if target in stack or target == resolved:
+                add_node(target)
+                graph.issues.append(GraphIssue(
+                    "cycle", str(target), "Dependency cycle detected"))
+                continue
+            if target in seen:
+                graph.issues.append(GraphIssue(
+                    "duplicate_dataset", str(target),
+                    "Dataset is referenced by more than one traversal path"))
+                continue
+            walk(target, depth + 1, (*stack, resolved))
+
+    walk(root_path, 0, ())
+    return graph
+
+
+def format_dependency_tree(graph: DatasetGraph) -> str:
+    """Render a compact tree while preserving cycles/duplicates as markers."""
+    children = {}
+    for edge in graph.edges:
+        children.setdefault(edge.source, []).append(edge.target)
+    lines = []
+    expanded = set()
+
+    def label(path: str) -> str:
+        node = graph.nodes[path]
+        return node.full_data_name or Path(path).name
+
+    def render(path: str, prefix: str = "", is_last: bool = True) -> None:
+        marker = "└─ " if is_last else "├─ "
+        lines.append((prefix + marker if prefix else "") + label(path))
+        if path in expanded:
+            lines[-1] += " [duplicate/cycle]"
+            return
+        expanded.add(path)
+        kids = children.get(path, [])
+        next_prefix = prefix + ("   " if is_last else "│  ") if prefix else ""
+        for index, child in enumerate(kids):
+            render(child, next_prefix, index == len(kids) - 1)
+
+    render(graph.root)
+    if graph.issues:
+        lines.append("Warnings: " + ", ".join(sorted({i.code for i in graph.issues})))
+    return "\n".join(lines)
 
 
 def find_keyword(datadir, keyword, roots=None, limit=50):

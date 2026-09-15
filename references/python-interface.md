@@ -7,7 +7,7 @@ This document walks through the design and evidence behind `scripts/carsim_batch
 ## 0. Workflow overview
 
 ```
-base Run_all.par (GUI-expanded base, once per vehicle)
+base Run_all.par (GUI-expanded and pinned per Run Control / execution context)
         |  referenced by
         v
 override.par (appended overrides: run switches + speed table + friction + open-loop steer + WRT channels)
