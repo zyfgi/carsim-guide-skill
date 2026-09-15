@@ -6,4 +6,6 @@ run_echo.par
 run_log.txt
 solver_stdout.txt
 run_manifest.json
+batch_manifest.json
+bases.local.json
 runs/

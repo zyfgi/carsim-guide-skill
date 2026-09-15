@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
+from base_registry import sha256
 from scenario_runner import MANIFEST_NAME, run_scenario
 from scenario_schema import load_scenario, validate_scenario
 
@@ -88,7 +89,8 @@ def run_batch(batch: str | Path, registry: str | Path,
               datadir: str | None = None, execute: bool = False,
               fail_fast: bool = False, timeout: float = 600) -> Path:
     """Compile/run isolated variants and always maintain a batch manifest."""
-    config, base, base_path = load_batch(batch)
+    batch_path = Path(batch).resolve()
+    config, base, base_path = load_batch(batch_path)
     batch_id = config["batch"]["id"]
     if not isinstance(batch_id, str) or not batch_id or any(c not in
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in batch_id):
@@ -104,6 +106,8 @@ def run_batch(batch: str | Path, registry: str | Path,
         "batch": {"id": batch_id, "created_utc": _utc_now(),
                   "finished_utc": None, "combination": config.get("combination", "cartesian")},
         "base_scenario": str(base_path),
+        "input_sha256": {"batch_config": sha256(batch_path),
+                         "base_scenario": sha256(base_path)},
         "sweep": config["sweep"],
         "runs": [],
     }

@@ -32,5 +32,8 @@ python scripts/batch_runner.py examples/batches/friction_sweep.yaml --registry b
 Output is `runs/<batch-id>/run_0001/...` with an immutable scenario snapshot,
 normal per-run artifacts/manifest, plus `batch_manifest.json`. Failures are
 recorded and isolated by default; `--fail-fast` stops after the first failure.
+The batch manifest records SHA256 values for both the batch configuration and
+its base scenario, along with every expanded parameter combination and run
+manifest path.
 Batch members execute sequentially. Concurrent multi-solver execution is not
 enabled because license and multi-instance solver behavior are not verified.

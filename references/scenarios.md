@@ -72,6 +72,6 @@ One directory per scenario: `run_manifest.json`, `base_Run_all.par`,
 units, 1 kHz), `run_echo.par`, `run_log.txt`, `solver_stdout.txt`. The
 manifest records run status/timestamps, CarSim version + solver/DLL hashes,
 base name + SHA256, the exact scenario config, artifact paths and input/output
-hashes. `scenario_sha256` is the portable hash of the saved scenario snapshot.
-Absolute PROG, DATADIR, solver, DLL, base, and artifact paths record machine
-provenance; they are not portable identity.
+hashes. `input_sha256["scenario.yaml"]` is the portable hash of the saved
+scenario snapshot. Absolute PROG, DATADIR, solver, DLL, base, and artifact
+paths record machine provenance; they are not portable identity.

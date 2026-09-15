@@ -2,6 +2,7 @@
 
 ## Verified environment
 
+- Python 3.10 or newer.
 - CarSim 2024.0 on Windows 10/11 x64.
 - 64-bit `VS_SolverWrapper_CLI_64.exe` with `carsim_64.dll`.
 - Headless CLI scenarios and isolated batch runs.

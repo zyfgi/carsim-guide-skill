@@ -1,4 +1,4 @@
-# Runtime dependency for scripts/ and examples/ (Python 3.8+)
+# Runtime dependencies for scripts/ and examples/ (Python 3.10+)
 pandas>=1.5
 numpy>=1.23
 PyYAML>=6.0

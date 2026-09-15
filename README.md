@@ -29,7 +29,7 @@ server.
 ## Requirements
 
 - Windows x64 with CarSim and a valid solver license.
-- Python 3.8+.
+- Python 3.10+.
 - Packages in `requirements.txt`.
 - MATLAB and Simulink only for co-simulation workflows.
 
@@ -151,8 +151,9 @@ Absolute installation paths in a manifest are machine provenance, not
 portable identity. To reproduce a run, use the same compatible CarSim version,
 bind an equivalent GUI-expanded base and verify its SHA256, reuse the saved
 scenario, then compare the new manifest and `run_echo.par`. The version, base
-hash, exact scenario, `scenario_sha256`, and critical input hashes provide the
-portable identity; bit-for-bit equality across machines is not assumed.
+hash, exact scenario, SHA256 of the saved `scenario.yaml`, and critical input
+hashes provide the portable identity; bit-for-bit equality across machines is
+not assumed.
 
 ## Safety and database policy
 
@@ -187,6 +188,8 @@ local solver acceptance.
   native units, and context.
 - Dataset-reference compatibility depends on the target keyword and dataset
   family; successful name resolution alone is insufficient.
+- Batch sweeps execute sequentially; concurrent multi-solver execution is not
+  enabled because license and multi-instance behavior are not verified.
 - Low-level VS API stepping is available as an advanced route but requires
   application-specific integration and validation.
 - `Lat_Veh` and `Lat_Targ` are excluded because they are known drift
