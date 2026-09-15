@@ -5,7 +5,7 @@ description: Operate and automate CarSim simulations from an agent, including sa
 
 # CarSim agent router
 
-CarSim 2024.0 is field-tested in this skill. Other explicitly detected
+CarSim 2024.0 is the verified solver target. Other explicitly detected
 versions follow the generic path with an **unverified** warning; version
 detection alone is not solver compatibility proof.
 

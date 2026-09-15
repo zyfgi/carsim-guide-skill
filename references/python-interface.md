@@ -41,7 +41,7 @@ CarSim parses parsfiles **last-write-wins**: a keyword written later replaces an
 | `MU_ROAD_CARPET 2D_STEP` | friction override (3-column table: s, mu_left, mu_right). If the base is a low-mu scenario, ordinary scenarios **must** override it or the tires saturate early |
 | `OPT_DM 0` + `STEER_SW_TABLE` | **open-loop steering is the only reliable steering override**. A closed-loop LTARG_TABLE is row-appended, not replaced (observed "tracking" a phantom target 14.6 m away) — never use it to override |
 | `LOG_ENTRY` + `END` | log marker + parsfile terminator (every par needs END) |
-| `unsafe_extra_lines=` (advanced API) | free keyword lines injected after the tables, before the WRT block — the standard slot for parameter overrides such as static payloads: `["M_SU 1254.0", "Y_CG_SU 150.0"]` (mass verified exact; see SKILL.md §5.3 for the Y_CG_SU quirk) |
+| `unsafe_extra_lines=` (advanced API) | free keyword lines injected after the tables, before the WRT block; for typed and generic parameter overrides, see `references/parameters.md` |
 
 The `_table()` helper emits `NAME <interp> … ENDTABLE` blocks; `_dedupe()` drops repeated abcissa values — CarSim rejects duplicate x values inside a table.
 
@@ -138,4 +138,6 @@ add `outputs=cb.OUTPUTS_TIRE` when the task needs tire forces or slips.
 
 ## 6. Companion utility
 
-`scripts/dump_dll_exports.py`: zero-dependency PE export-table parser that lists any DLL's export symbols (originally used to confirm that carsim_64.dll exports the full VS C API, 300+ symbols). `python dump_dll_exports.py carsim_64.dll`.
+`scripts/dump_dll_exports.py`: zero-dependency PE export-table parser that
+lists a DLL's exported symbols. Run it as
+`python scripts/dump_dll_exports.py carsim_64.dll`.

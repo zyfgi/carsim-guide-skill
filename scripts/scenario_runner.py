@@ -4,8 +4,8 @@ validated run + run_manifest.json.
 This is the high-level entry point for ordinary CarSim scenarios. It delegates
 all solver mechanics to carsim_batch (never re-implements them), resolves the
 base by explicit name + SHA256 via base_registry, and validates results with
-validate_run.check_run. The manifest records only generic run facts - no
-research/estimator/sensor fields; research layers extend it.
+validate_run.check_run. The manifest records scenario, environment, artifact,
+and validation facts for the run.
 
     python scripts/scenario_runner.py scenario.yaml --registry bases.local.json \
         --out runs --run

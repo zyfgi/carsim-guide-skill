@@ -136,8 +136,7 @@ OUTPUTS_TIRE = [n for n in OUTPUTS_CORE if channel(n).category == "tire"]
 #   L1=FL  R1=FR  L2=RL  R2=RR   (axle 1 = front, 2 = rear)
 
 # CSV units are maintained in result_contract.CHANNEL_REGISTRY.
-# Prefixes the optional research workflows (estimator validation) treat as
-# privileged simulator outputs; ordinary CarSim reads may use them freely.
+# Tire-output prefixes retained for compatibility with older callers.
 PRIVILEGED_PREFIXES = ("Fx_", "Fy_", "Fz_", "Kappa_", "Alpha_")
 UNRELIABLE_COLS = ("Lat_Veh", "Lat_Targ")  # known-drift artifacts; use Yo/Yaw
 
@@ -191,7 +190,7 @@ def override_par(base_run_all, tstop, speed_rows, steer_rows,
                  scalar_overrides=(), structured_overrides=(), datadir=None):
     """Build override.par text: base reference + run switches + control tables.
 
-    Key switches (see SKILL.md section 3 for the full rationale):
+    Key switches (see references/python-interface.md for the full rationale):
       OPT_ERROR_DIALOG 0  headless: never pop a dialog
       OPT_VS_FILETYPE 4   ERD output as plain-text CSV
       OPT_ALL_WRITE 0     only the WRT_* channels below are written
@@ -387,8 +386,8 @@ def read_run_csv(path, columns=None, units="SI", *, allow_truth=None):
     if allow_truth is not None:
         warnings.warn(
             "allow_truth is deprecated and ignored: read_run_csv returns all "
-            "registered channels; estimator isolation lives in "
-            "load_run()/estimator_view() (research workflow)",
+            "registered channels; select columns explicitly when isolation "
+            "is required",
             DeprecationWarning, stacklevel=2)
     if units not in ("SI", "native"):
         raise ValueError("units must be 'SI' or 'native', got %r" % (units,))

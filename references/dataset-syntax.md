@@ -1,16 +1,19 @@
 # CarSim Dataset (.par) Syntax Templates
 
-## 0. Read this warning first: thin-parsfile direct reads are falsified
+## Read this warning first
 
-The solver **cannot** recursively parse raw database datasets (raw .par files contain GUI-only decorations, see §7; testing showed a deterministic segfault at the hanging-damper dataset). Therefore:
+Direct solver execution from thin raw database trees is unsupported by this
+skill. Raw `.par` files can contain GUI-only decorations; use a GUI-expanded
+`Run_all.par` base instead.
 
 - **Do not** hand-write a thin parsfile that references a vehicle assembly and feed it to the solver;
-- **Do not** write your own "expander" to clean raw datasets (fixing one error uncovers the next).
+- **Do not** write a custom expander for raw datasets.
 
 The templates in this file have exactly three legitimate uses:
 1. **Reading** the dataset blocks inside GUI-generated Run_all.par / echo files (debugging, parameter checks);
 2. Knowing what each keyword block means when editing/cloning database datasets via the **GUI or MCP tools**;
-3. When writing override.par (see SKILL.md §3), knowing which dataset each underlying keyword comes from and what is being overridden.
+3. Understanding the source of keywords used in `override.par`; see
+   `references/parameters.md` and `references/scenarios.md`.
 
 ## 1. Run Control (top-level thin parsfile — the raw material for GUI-generated bases)
 
@@ -48,7 +51,7 @@ OPT_DIRECTION 0            ! forward
 *SPEED 50                  ! initial-speed hint (km/h, GUI use; actual initial speed comes from the speed table's first row)
 
 ! -- control injection area: closed-loop speed controller / path follower, or links to external datasets --
-! (see §3, §4 — or override directly in override.par, see SKILL.md §3)
+! (see the controller and path-follower templates below)
 
 PARSFILE <DATADIR>\Control\Driver\StrDM_<id>.par      ! closed-loop steering driver (omit if unused)
 PARSFILE <DATADIR>\Control\Braking\PbkCon_<id>.par    ! braking (constant 0 MPa)
@@ -106,7 +109,8 @@ TPREV_CONSTANT 0.75            ! preview time, s
 VLOW_DM 10
 ```
 
-**Warning repeated**: a same-name TABLE in an override is **row-appended**, not replaced — overriding the base's steering with LTARG_TABLE concatenates the two tables into a phantom target (observed in testing). Use open-loop `STEER_SW_TABLE` for steering overrides only.
+**Warning**: a same-name `LTARG_TABLE` in an override is **row-appended**, not
+replaced. Use open-loop `STEER_SW_TABLE` for steering overrides.
 
 ## 5. Segment-Builder road (straight + arc sequences)
 
@@ -160,7 +164,9 @@ RRE(1,1) 287.0       ! effective rolling radius, mm; 1,1=FL 1,2=FR 2,1=RL 2,2=RR
 R0(1,1) 287.0        ! unloaded radius, mm
 ```
 
-**Y_CG_SU quirk (verified in controlled A/B/C/D runs)**: the static left-right tire-load split responds exactly linearly to the value, but measures ≈2.07× the naive rigid prediction `W_total·y_CG_total/track` (the solver's own echo shows the correct total CG via `Y_CG_TL` ≈ m_SU/m_total·y_SU, so the factor is an internal implementation detail). For ground-truth lateral CG, read the `Y_CG_TL` (CALC) line from `run_echo.par` — do not invert the Fz split naively.
+`Y_CG_SU` describes the sprung-body lateral CG, not the total-vehicle CG. For
+the effective lateral CG, read the `Y_CG_TL` (`CALC`) line from
+`run_echo.par`; do not infer it from the static tire-load split.
 
 ## 7. GUI-only decorations (what breaks direct solver reads)
 

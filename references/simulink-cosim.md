@@ -1,10 +1,11 @@
-# Simulink Co-simulation (verified recipe)
+# Simulink co-simulation
 
-How to run CarSim coupled with a Simulink controller, entirely from scripts (no GUI model editing). Verified end-to-end: a PI yaw-rate tracker steering a 4-motor EV via `vs_sf`, 1 kHz exchange, **0.00% steady-state tracking error**; also confirmed working on MATLAB **R2025b** + CarSim 2024.0 (newer than the officially supported range — R2023a+ required by the tooling, older CarSim-verified combos top out around R2023b/R2024a).
+Use CLI batch execution when all external inputs are predefined before the
+run. Use Simulink co-simulation when an external controller must affect the
+vehicle during the same simulation. The bundled example has been exercised
+end-to-end with CarSim 2024.0 and MATLAB R2025b with Simulink 25.2.
 
-For identification/data loops without MATLAB, prefer the CSV batch workflow (SKILL.md §3-§4) — 16×+ faster and dependency-free. Use Simulink when the controller/algorithm lives in Simulink.
-
-## 1. Mechanism
+## Mechanism
 
 ```
 Simulink model (your controller)
@@ -18,7 +19,7 @@ Simulink model (your controller)
 - Import/export declarations live in the parsfile; the counts live in BOTH the parsfile and the simfile (see pitfall 1).
 - Exports carry **native CarSim units** (km/h, deg/s, g) — convert where you consume them.
 
-## 2. Verified recipe (programmatic, no GUI)
+## Programmatic route
 
 1. **Generate the co-sim inputs with the normal override workflow**, adding import/export declarations via `unsafe_extra_lines` (see `examples/simulink_cosim.py`):
 
@@ -45,43 +46,26 @@ Simulink model (your controller)
 
 3. **Verify in Python**: read `cosim_results.csv` with pandas, convert native units to SI.
 
-## 3. Pitfalls (all stepped on — do not retry)
+## Runtime requirements
 
-1. **PORTS syntax is two numbers**: `PORTS_IMP <array#>,<count>` (e.g. `PORTS_EXP 1,5`). A single number is parsed as the *array number* — `PORTS_EXP 5` produces the baffling error `S-function 'vs_sf' ... output port 5 has an invalid width`.
+1. **PORTS syntax is two numbers**: `PORTS_IMP <array#>,<count>` (e.g. `PORTS_EXP 1,5`). A single number is parsed as the *array number* and can produce an invalid-width error.
 2. **Use the library block, not a raw S-Function block**: `Solver_SF/CarSim S-Function` with mask parameter `SIMFILE`. A raw S-Function block whose `Parameters` is `simfile.sim` fails compilation — Simulink evaluates the string as a MATLAB expression (`unable to resolve name`).
-3. **Import activation**: `IMPORT IMP_STEER_SW REPLACE` is the proven-active form (matches official runs with live ports). The `VS_ADD 0` form parsed fine but the signal stayed inert in testing — don't waste an hour on it.
-4. **To Workspace time is already numeric** — never wrap it in `seconds()` (it converts doubles *into* durations and corrupts the whole exported matrix; symptom: every CSV field suffixed like `4.32e+06`).
+3. **Import activation**: use `IMPORT IMP_STEER_SW REPLACE` for the live steering port. `VS_ADD 0` can parse without activating the signal.
+4. **To Workspace time is already numeric** — do not wrap it in `seconds()`, which converts doubles into durations and corrupts the exported matrix.
 5. **Discrete-Time Integrator has no `Gain` parameter** (name differs across releases) — use gain 1 in the block and a plain Gain block after it.
 6. **License still applies** (GUI or `cslm.exe`), same as the headless CLI.
 7. Fixed-step solver (`ode1`) with `FixedStep` = `EXT_MODEL_STEP` = solver `TSTEP`.
 
-## 4. Reference demo numbers (your acceptance yardstick)
+## Timing and path consistency
 
-PI yaw-rate target 0.15 rad/s at 50 km/h cruise: steady error 0.00%, 95% rise 0.09 s, overshoot 13%, plant gain ≈ 0.26-0.28 (deg/s yaw)/deg SW — the same gain an independent Python closed-loop calibration measured (0.13% error in 3 runs), which cross-validates both paths.
-
-## 5. Related tooling
-
-- **Simulink Agentic Toolkit** (github.com/matlab/simulink-agentic-toolkit): official MathWorks skills giving agents Model-Based-Design knowledge for building/editing/testing Simulink models — pairs well with this skill (we generate the CarSim side, it builds the controller side). NOT required for the recipe above (plain `matlab -batch` suffices); install it for nontrivial model-design work:
-
-  ```bash
-  git clone --depth 1 https://github.com/matlab/simulink-agentic-toolkit /tmp/satk
-  cp -r /tmp/satk/skills-catalog/{simulink-modeling,simulink-simulation,simulink-environment-fundamentals,control-systems} ~/.agents/skills/
-  ```
-
-  (adjust the target to your agent's skills directory; MathWorks license applies — use in conjunction with MathWorks products.)
-- Component-level S-Functions (`vs_dyn`, `vs_kin`, `vs_ctl`, `vs_state` in the same folder) expose sub-models separately; UDP blocks exist for distributed setups.
-
-
-## Research-contract integration update
-
-The Python examples now create a single `SimulationConfig` and pass its duration
-and dt to both CarSim files and the MATLAB model builder. MATLAB builders accept
+The Python examples create one `SimulationConfig` and pass its duration and
+`dt` to both the CarSim files and MATLAB model builder. MATLAB builders accept
 optional `tstop, dt` arguments; their integrators and fixed-step solver use the
-same dt. Examples keep the verified 1 ms default.
+same `dt`. Keep `EXT_MODEL_STEP`, CarSim `TSTEP`, and the MATLAB fixed step
+equal.
 
-`PROGDIR` and `DATADIR` must include their trailing path separator. Some native
-terrain references concatenate the directory string with a filename; omitting
-it caused `...DataProving_Ground.vsterrain` and a stop at t=0 in a regression run.
-The generator now preserves the separator and disables error dialogs before
-reading the base. Python captures both MATLAB stdout and stderr in
-`matlab_output.txt` so startup and solver errors are reviewable.
+`PROGDIR` and `DATADIR` must include their trailing path separator because some
+native resources concatenate the directory string with a filename. The
+generator preserves the separator and disables error dialogs before reading
+the base. Python captures MATLAB stdout and stderr in `matlab_output.txt` so
+startup and solver errors are reviewable.

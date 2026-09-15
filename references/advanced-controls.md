@@ -1,6 +1,8 @@
 # Advanced controls (open-loop driver inputs, torque imports, table semantics)
 
-Field-verified recipes that unlock event-style scenarios (FSAE-style acceleration/braking) and per-wheel torque control (torque vectoring / TCS). Everything below ran on the 4-motor EV base; keywords were cross-checked against official database runs.
+Use these CarSim 2024.0 control forms for open-loop acceleration/braking and
+per-wheel torque control. Confirm actuator availability and limits in the
+selected Run Control base.
 
 ## 1. Open-loop driver controls (`OPT_SC 0`)
 
@@ -37,9 +39,14 @@ IMPORT IMP_M_MOTOR_CMD_D2_R Add 0.0! 1
 PORTS_IMP 1,4
 ```
 
-- `VS_REPLACE <val>` parses and is accepted, but with ports ACTIVE it stayed **inert** in testing (car never moved) — do not waste an hour on it. The `Add 0.0! 1` form comes verbatim from the official torque-vectoring run control and works.
-- **Constant torque without Simulink**: declare `IMPORT ... VS_REPLACE 150` with `PORTS_IMP 0` — imports hold their initial values, giving a fixed per-wheel torque in a plain CLI run (verified: My_Dr = 149 N·m, Ax = 1.83 m/s² vs theory 1.66). This is the zero-dependency FSAE acceleration-event pattern.
-- **Time-varying torque control**: Simulink co-sim (`references/simulink-cosim.md` + `scripts/tv_cosim.m` + `examples/torque_vectoring.py`). Verified demo: speed PI on total torque + yaw PI on the left/right differential, steering wheel held at exactly 0.000° — yaw target 0.06 rad/s reached within 4.3% error. Mind the saturation budget: per-wheel ±580 N·m (motor limit) bounds the achievable differential torque, which bounds the zero-steer yaw rate (0.1 rad/s target did NOT converge at 50 km/h; 0.06 did).
+- With active ports, use the GUI-native `Add 0.0! 1` form shown above;
+  `VS_REPLACE <val>` does not activate the live signal.
+- **Constant torque without Simulink**: declare `IMPORT ... VS_REPLACE <value>`
+  with `PORTS_IMP 0`; imports hold their initial values for a plain CLI run.
+- **Time-varying torque control**: use Simulink co-simulation with
+  `references/simulink-cosim.md`, `scripts/tv_cosim.m`, and
+  `examples/torque_vectoring.py`. Respect the per-wheel motor limits defined by
+  the selected vehicle.
 
 ## 3. Table-override semantics (echo-verified)
 
@@ -58,9 +65,13 @@ Notes:
 - Echo keywords may carry an index suffix (`MU_ROAD_CARPET(1)`) — grep accordingly.
 - **Property/geometry tables inside subsystem datasets (spring/damper/kinematics/aero maps) are NOT verified via override** — the append behavior documented for LTARG makes them risky. For design-space sweeps over geometry: edit the dataset in the GUI (or MCP `set_table` on a clone) and re-expand the base, once per design point. Scalars (`M_SU`, gear ratios, etc.) remain clean `unsafe_extra_lines` territory.
 
-## 4. FSAE-oriented notes
+## 4. Operational notes
 
-- **Acceleration event**: `OPT_SC 0` + constant torque import (`PORTS_IMP 0`, §2) — measure 75 m time from `Xo`.
-- **Braking test (rule: ≥ 0.7 g)**: open-loop brake table, §1. Mechanism verified; note the achievable decel is vehicle-hardware-limited — this street-EV base saturates at ~0.64 g because its brake config only actuates the front axle (rear `My_Bk_*` = 0, fronts lock at kappa = −1). An FSAE base with 4-wheel brakes will clear 0.7 g.
+- **Acceleration**: `OPT_SC 0` plus constant torque import (`PORTS_IMP 0`,
+  section 2); measure distance from `Xo`.
+- **Braking**: use the open-loop brake table in section 1. Achievable
+  deceleration depends on the selected vehicle's brake configuration.
 - **Skidpad**: constant SW angle (open-loop steering) + closed-loop speed traces a steady circle — measure radius/lateral accel from `Yo/Yaw`.
-- **Torque vectoring / TCS**: §2; slip signals (`Kappa_*`) are already in the WRT whitelist (exclude t < 0.5 s after a standing start — normalization spike).
+- **Torque vectoring / TCS**: use section 2. Slip signals (`Kappa_*`) are
+  already in the WRT whitelist; exclude the initial standing-start
+  normalization spike where appropriate.

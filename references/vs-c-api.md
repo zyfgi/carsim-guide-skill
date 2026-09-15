@@ -1,6 +1,11 @@
-# VS C API Fallback (step-by-step integration via ctypes)
+# VS C API fallback (step-by-step integration via ctypes)
 
-Read this only if you need **hard real-time stepping** — true closed-loop coupling with the solver at integration rate (e.g., hardware-in-the-loop or an external controller that must react within the step). For everything else (online validation included), the 1 kHz CSV batch + causal replay of the main workflow is simpler and 16×+ faster (SKILL.md §2, Misconception 2).
+Use the VS C API only when a program requires direct step-by-step interaction
+with the VehicleSim solver and Simulink co-simulation is not the desired
+integration route.
+
+For predefined inputs, use the CLI scenario runner. For Simulink-based runtime
+feedback, use the verified Simulink route in `references/simulink-cosim.md`.
 
 Status: **documented prototype, not verified end-to-end** — the prototypes below come from the VS_Commands_API memo and MATLAB-facing docs. Validate return-value semantics on a minimal scenario before relying on them.
 
@@ -32,7 +37,7 @@ vs_terminate_run();                // write end files, clean up
 vs_terminate();                    // release the model
 ```
 
-## Function prototypes (guessed — verify before production use)
+## Function prototypes (confirm before production use)
 
 | Function | Guessed prototype | Notes |
 |---|---|---|
@@ -52,7 +57,7 @@ vs_terminate();                    // release the model
 
 ## If you go this route
 
-1. Use a §3-style simfile as input (GUI-expanded base underneath, CSV outputs off — you read via `vs_get_var_ptr`).
+1. Use a simfile backed by a GUI-expanded base (CSV outputs off when values are read through `vs_get_var_ptr`).
 2. Confirm GUI/CSLM is running (license).
 3. Validate on a minimal scenario first: check `vs_error_occurred()` after every stage, print `vs_get_output_message` / `vs_get_error_message` buffers, and compare one stepped trajectory against a `vs_run` of the same simfile.
 4. Import semantics: import values are held over [k, k+1) (zero-order hold) — verify with wheel-speed increments before trusting closed-loop timing.

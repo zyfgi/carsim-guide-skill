@@ -12,14 +12,16 @@ in, CarSim mm out:
 VehicleOverrides(sprung_mass_kg=1250.0, cg_y_m=0.15, izz_kgm2=1743.0)
 ```
 
-Sprung mass is absolute (not added payload); sprung-body CG is not the
-total-vehicle CG; the Y_CG_SU static-split quirk is documented in SKILL.md §5.
+Sprung mass is absolute (not added payload), and the typed CG fields describe
+the sprung body rather than the total vehicle. Confirm the effective total CG
+in `run_echo.par`; for lateral CG, use the echoed `Y_CG_TL` value rather than
+inferring it from the static left-right tire-load split.
 
 ## 2. Generic scalar overrides (keyword confirmed, value native)
 
 `ScalarOverride` carries one keyword, its value **in the CarSim native
 unit**, and an echo policy (`required`, `best_effort`, or `none`). Registered
-field-tested scalars default to `required`; unknown generic scalars default to
+registered scalars default to `required`; unknown generic scalars default to
 `best_effort`. Only keywords verified on a real base belong in
 `parameters.PARAMETER_REGISTRY` (currently the same five above); anything else
 must be confirmed first:

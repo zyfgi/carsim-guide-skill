@@ -3,8 +3,7 @@
 Generic CarSim scenario layer: timing (SimulationConfig), typed vehicle
 parameter overrides (VehicleOverrides) and validation of generic scenario
 YAML/JSON (validate_scenario / load_scenario against schemas/
-scenario.schema.json). Research-specific concepts (estimator whitelists,
-sensors, experiments) live in the workflow layer, not here.
+scenario.schema.json).
 """
 import json
 import math
@@ -71,9 +70,10 @@ def _validate_maneuver(config, sim):
 
 
 def validate_scenario(config):
-    """Validate a generic scenario dict: schema + semantics. No research
-    concepts exist here; every registered output channel (tire forces
-    included) is a legal output."""
+    """Validate a generic scenario dict: schema plus runtime semantics.
+
+    Every registered output channel, including tire forces, is legal.
+    """
     import jsonschema
     schema = Path(__file__).resolve().parents[1] / "schemas" / "scenario.schema.json"
     jsonschema.Draft202012Validator(json.loads(schema.read_text(encoding="utf-8"))).validate(config)

@@ -48,7 +48,7 @@ OVERRIDE_CAPABILITIES = (
         None,
         None,
         VerificationLevel.CONTEXT_REQUIRED,
-        "Generic keyword syntax is tested; meaning, unit, and echo availability require context",
+        "Generic keyword serialization is available; meaning, unit, and echo availability require context",
     ),
     OverrideCapability(
         "table",

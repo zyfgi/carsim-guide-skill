@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """List the export symbols of a Windows DLL by parsing the PE export table.
 
-Zero dependencies (hand-rolled PE parsing, no pefile needed). Originally used
-to enumerate the ~300 exported VS C API symbols of the CarSim solver DLL
-(carsim_64.dll); works for any DLL.
+Zero dependencies (hand-rolled PE parsing, no pefile needed). It can enumerate
+the exported VS C API symbols of `carsim_64.dll` and works for any DLL.
 
 Usage:  python dump_dll_exports.py <path-to.dll> [more.dll ...]
 """
